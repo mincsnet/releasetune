@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Tune — 今日はあの曲のリリース日</title>
+<meta name="description" content="今日この日にリリースされた楽曲を、年代を超えてご紹介します。">
+<meta property="og:title" content="Release Tune">
+<meta property="og:description" content="今日この日にリリースされた楽曲を、年代を超えてご紹介します。">
+<meta property="og:type" content="website">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f0f; color: #fff; font-family: 'Noto Sans JP', sans-serif; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0f0f0f; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  a { transition: opacity 0.15s; }
+  a:hover { opacity: 0.75 !important; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  #loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; flex-direction: column; gap: 16px;
+    color: #6a6a6a; font-size: 0.85rem; letter-spacing: 0.1em;
+  }
+  .spinner {
+    width: 32px; height: 32px; border: 2px solid #2a2a2a;
+    border-top-color: #c8a84b; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Old+Mincho:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="loading">
+  <div class="spinner"></div>
+  <span>Loading...</span>
+</div>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const C = {
+  bg:"#0f0f0f", surface1:"#181818", surface2:"#242424",
+  border:"#2a2a2a", textPri:"#ffffff", textSec:"#b3b3b3",
+  textMute:"#6a6a6a", gold:"#c8a84b",
+};
+
+const TODAY = new Date();
+const TODAY_MMDD = `${String(TODAY.getMonth()+1).padStart(2,"0")}-${String(TODAY.getDate()).padStart(2,"0")}`;
+
+function yearsAgo(d){ return TODAY.getFullYear()-parseInt(d.split("-")[0]); }
+function formatDate(d){ const [y,m,dd]=d.split("-"); return `${y}年${parseInt(m)}月${parseInt(dd)}日`; }
+function getMmdd(track, db){
+  for(const [k,v] of Object.entries(db)) if(v.find(t=>t.id===track.id)) return k;
+  return null;
+}
+
+// ── アイコン ──────────────────────────────────────────────────
+function SpIcon({s=12}){return(<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>);}
+function ApIcon({s=12}){return(<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><path d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.496 10.496 0 00-1.564-.15c-.05-.003-.098-.01-.146-.013H5.991c-.05.003-.098.01-.146.013-.5.03-1.002.07-1.47.16A5.065 5.065 0 002.42.87C1.327 1.602.583 2.6.24 3.913A9.77 9.77 0 00.005 6.122C0 6.22-.002 6.318 0 6.416v11.19c.002.09.006.18.012.27.06 1.04.28 2.02.79 2.92a5.06 5.06 0 002.87 2.28c.98.33 1.99.43 3.02.45.14.01.28.01.42.01h10.88c.14 0 .28 0 .42-.01 1.03-.02 2.04-.12 3.02-.45a5.06 5.06 0 002.87-2.28c.51-.9.73-1.88.79-2.92.006-.09.01-.18.012-.27V6.416c.002-.098 0-.196-.005-.292zM12 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5zm6.5-9.75a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zM12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z"/></svg>);}
+function YtIcon({s=12}){return(<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><path d="M23.495 6.205a3.007 3.007 0 00-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 00.527 6.205a31.247 31.247 0 00-.522 5.805 31.247 31.247 0 00.522 5.783 3.007 3.007 0 002.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 002.088-2.088 31.247 31.247 0 00.5-5.783 31.247 31.247 0 00-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>);}
+function AmIcon({s=12}){return(<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><path d="M.045 18.02c.072-.116.187-.124.348-.022 3.636 2.11 7.594 3.166 11.87 3.166 2.852 0 5.668-.533 8.447-1.595l.315-.14c.138-.06.234-.1.293-.13.226-.088.39-.046.525.13.12.174.09.336-.12.48-.256.19-.6.41-1.006.654-1.244.743-2.64 1.316-4.185 1.726a17.617 17.617 0 01-10.951-.577 17.77 17.77 0 01-5.43-3.35c-.1-.105-.12-.2-.1-.32zm7.647-2.38c-.25-.15-.19-.356.12-.405l.35-.028c1.02-.097 2.07-.105 3.12-.025.62.047 1.25.12 1.87.218l.35.066c.167.044.23.155.197.33-.02.082-.065.136-.14.165a.336.336 0 01-.216.01 16.458 16.458 0 00-3.36-.348 15.916 15.916 0 00-2.29.217zm8.535-9.622c.57.022 1.01.204 1.32.544.3.34.45.78.44 1.318l-.01.123c-.02.247-.07.5-.15.756-.3.97-.87 1.773-1.71 2.41-.84.636-1.76.965-2.77.988-.48.01-.9-.107-1.27-.35-.37-.24-.62-.57-.76-.98-.14-.41-.14-.85.01-1.31.15-.47.43-.87.84-1.19.41-.32.9-.52 1.46-.6a4.773 4.773 0 011.56.03l.55.12.06-.35c.04-.2.05-.41.05-.62 0-.44-.11-.79-.33-1.05-.22-.26-.54-.39-.97-.39-.34 0-.63.08-.88.24a1.18 1.18 0 00-.5.66l-.05.16c-.05.17-.16.25-.33.25h-.74c-.19 0-.28-.1-.28-.3 0-.01.01-.04.02-.09.14-.63.47-1.12 1-1.46.52-.34 1.14-.51 1.86-.49zm-1.31 5.11c.33 0 .64-.08.93-.23.29-.15.52-.38.69-.69.17-.31.26-.66.26-1.06l-.01-.16-.48-.11a3.52 3.52 0 00-.98-.06c-.43.04-.79.19-1.07.45-.29.26-.43.58-.43.97 0 .33.1.59.3.78.2.19.47.28.8.28v-.17z"/></svg>);}
+
+// ── 共通パーツ ────────────────────────────────────────────────
+function Jacket({jacket, title, size=68}){
+  const [err,setErr]=useState(false);
+  if(!jacket||err){
+    return(<div style={{width:size,height:size,flexShrink:0,borderRadius:4,
+      background:"linear-gradient(135deg,#c8a84b33 0%,#1e1e1e 100%)",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      fontSize:size*0.3,color:"#c8a84bcc"}}>♪</div>);
+  }
+  return(<img src={jacket} alt={title} onError={()=>setErr(true)}
+    style={{width:size,height:size,flexShrink:0,borderRadius:4,objectFit:"cover",display:"block"}}/>);
+}
+
+function SvcLink({href,iconColor,icon,label,large}){
+  const [hov,setHov]=useState(false);
+  return(<a href={href} target="_blank" rel="noopener noreferrer"
+    onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+    style={{display:"inline-flex",alignItems:"center",gap:6,
+      fontSize:large?"0.8rem":"0.68rem",padding:large?"9px 14px":"4px 10px",
+      borderRadius:4,border:`1px solid ${hov?"#555":C.border}`,
+      color:C.textSec,textDecoration:"none",
+      background:hov?C.surface2:"transparent",
+      fontWeight:500,whiteSpace:"nowrap",transition:"background 0.15s,border-color 0.15s"}}>
+    <span style={{color:iconColor,display:"flex",alignItems:"center"}}>{icon}</span>{label}
+  </a>);
+}
+
+function SvcGrid({links}){
+  const items=[
+    links?.spotify&&{href:links.spotify,iconColor:"#1DB954",icon:<SpIcon s={14}/>,label:"Spotify"},
+    links?.apple  &&{href:links.apple,  iconColor:"#fc3c44",icon:<ApIcon s={14}/>,label:"Apple Music"},
+    links?.amazon &&{href:links.amazon, iconColor:"#00A8E1",icon:<AmIcon s={14}/>,label:"Amazon Music"},
+    links?.youtube&&{href:links.youtube,iconColor:"#FF0000",icon:<YtIcon s={14}/>,label:"YouTube"},
+  ].filter(Boolean);
+  return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+    {items.map(i=><SvcLink key={i.label} {...i} large/>)}
+  </div>);
+}
+
+function NavBtn({onClick,children,accent}){
+  const [hov,setHov]=useState(false);
+  return(<button onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+    style={{background:hov?C.surface2:C.surface1,border:`1px solid ${accent?C.gold+"66":C.border}`,
+    color:accent?C.gold:C.textSec,borderRadius:4,padding:"6px 14px",fontSize:"0.76rem",
+    cursor:"pointer",whiteSpace:"nowrap",fontFamily:"inherit",transition:"background 0.15s",fontWeight:accent?600:400}}>{children}</button>);
+}
+
+function SiteHeader({onLogoClick}){
+  return(<div style={{position:"sticky",top:0,zIndex:100,
+    background:"rgba(15,15,15,0.92)",backdropFilter:"blur(12px)",
+    borderBottom:`1px solid ${C.border}`,padding:"12px 20px",
+    display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+    <button onClick={onLogoClick} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"baseline",gap:"0.3em"}}>
+      <span style={{fontFamily:"'Zen Old Mincho',serif",fontSize:"1rem",fontWeight:700,color:C.gold,letterSpacing:"0.1em"}}>Release</span>
+      <span style={{fontFamily:"'Zen Old Mincho',serif",fontSize:"1rem",fontWeight:700,color:C.textSec,letterSpacing:"0.1em"}}>Tune</span>
+    </button>
+    <span style={{fontSize:"0.7rem",color:C.textMute,letterSpacing:"0.04em",fontStyle:"italic"}}>今日はあの曲のリリース日</span>
+  </div>);
+}
+
+// ── トップページ ──────────────────────────────────────────────
+function TopPage({viewDate,setViewDate,onSelectTrack,db}){
+  const [month,day]=viewDate.split("-").map(Number);
+  const isToday=viewDate===TODAY_MMDD;
+  const tracks=db[viewDate]||[];
+  const sorted=[...tracks].sort((a,b)=>a.releaseDate.localeCompare(b.releaseDate));
+  const [featuredIdx]=useState(()=>Math.floor(Math.random()*Math.max(sorted.length,1)));
+  const featured=sorted.length>0?sorted[featuredIdx%sorted.length]:null;
+  const others=sorted.filter(t=>t.id!==featured?.id);
+
+  function shiftDate(delta){
+    const base=new Date(2024,month-1,day+delta);
+    setViewDate(`${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`);
+  }
+
+  return(<>
+    <div style={{background:"linear-gradient(180deg,#c8a84b22 0%,#c8a84b0a 40%,#0f0f0f 100%)",padding:"32px 20px 24px",textAlign:"center"}}>
+      <h1 style={{fontFamily:"'Zen Old Mincho',serif",fontSize:"clamp(2rem,7vw,3rem)",fontWeight:700,color:C.textPri,lineHeight:1.1,marginBottom:8}}>{month}月{day}日</h1>
+      <p style={{fontSize:"0.74rem",color:C.textMute,letterSpacing:"0.08em"}}>ON THIS DAY</p>
+    </div>
+    <div style={{maxWidth:600,margin:"0 auto",padding:"0 20px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:8,flexWrap:"wrap",borderBottom:`1px solid ${C.border}`}}>
+      <NavBtn onClick={()=>shiftDate(-1)}>◀ 前日</NavBtn>
+      <div style={{background:C.surface1,border:`1px solid ${C.border}`,borderRadius:4,padding:"5px 18px",fontFamily:"'Zen Old Mincho',serif",fontSize:"1rem",fontWeight:700,color:C.textPri,minWidth:90,textAlign:"center"}}>{month}月{day}日</div>
+      <NavBtn onClick={()=>shiftDate(1)}>翌日 ▶</NavBtn>
+      {!isToday&&<NavBtn onClick={()=>setViewDate(TODAY_MMDD)} accent>今日に戻る</NavBtn>}
+    </div>
+    <div style={{maxWidth:600,margin:"0 auto",padding:"0 20px",paddingBottom:60}}>
+      {sorted.length>0?(<>
+        {featured&&(
+          <div style={{padding:"24px 0",borderBottom:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",gap:20,alignItems:"flex-end",marginBottom:16}}>
+              <div onClick={()=>onSelectTrack(featured)} style={{cursor:"pointer",flexShrink:0}}>
+                <Jacket jacket={featured.jacket} title={featured.title} size={120}/>
+              </div>
+              <div style={{minWidth:0,paddingBottom:4}}>
+                <div onClick={()=>onSelectTrack(featured)} style={{fontFamily:"'Zen Old Mincho',serif",fontSize:"clamp(1.1rem,4vw,1.6rem)",fontWeight:700,color:C.textPri,lineHeight:1.2,marginBottom:6,cursor:"pointer"}}>{featured.title}</div>
+                <div style={{fontSize:"0.85rem",color:C.textSec,fontWeight:600,marginBottom:6}}>{featured.artist}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:"0.72rem",color:C.textMute}}>{formatDate(featured.releaseDate)}</span>
+                  {yearsAgo(featured.releaseDate)>0&&<span style={{fontSize:"0.72rem",color:C.gold,background:`${C.gold}22`,border:`1px solid ${C.gold}44`,padding:"1px 8px",borderRadius:3,fontWeight:700}}>{yearsAgo(featured.releaseDate)}年前</span>}
+                </div>
+              </div>
+            </div>
+            {featured.note&&<p style={{fontSize:"0.84rem",color:C.textPri,lineHeight:1.8,opacity:0.88,marginBottom:16}}>{featured.note}</p>}
+            <SvcGrid links={featured.links}/>
+            <button onClick={()=>onSelectTrack(featured)} style={{marginTop:12,background:"none",border:`1px solid ${C.border}`,color:C.textMute,borderRadius:4,padding:"6px 14px",fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit"}}>詳細を見る →</button>
+          </div>
+        )}
+        {others.length>0&&(
+          <div style={{paddingTop:24}}>
+            <div style={{fontSize:"0.92rem",fontWeight:700,color:C.textPri,marginBottom:4}}>{month}月{day}日にリリースされた他の楽曲</div>
+            <div style={{fontSize:"0.68rem",color:C.textMute,marginBottom:16,letterSpacing:"0.04em"}}>{others.length} TRACKS</div>
+            <div style={{display:"flex",flexDirection:"column",gap:2}}>
+              {others.map((track,i,arr)=>{
+                const year=track.releaseDate.split("-")[0];
+                const prevYear=arr[i-1]?.releaseDate.split("-")[0];
+                return(<div key={track.id}>
+                  {year!==prevYear&&(
+                    <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 0 8px"}}>
+                      <span style={{fontSize:"0.72rem",fontWeight:700,color:C.textMute,letterSpacing:"0.1em"}}>{year}</span>
+                      <div style={{flex:1,height:1,background:C.border}}/>
+                      <span style={{fontSize:"0.66rem",color:C.gold}}>{TODAY.getFullYear()-parseInt(year)}年前</span>
+                    </div>
+                  )}
+                  <TopCard track={track} index={i} onSelect={()=>onSelectTrack(track)}/>
+                </div>);
+              })}
+            </div>
+          </div>
+        )}
+      </>):(
+        <div style={{textAlign:"center",padding:"72px 20px"}}>
+          <div style={{fontSize:"2rem",marginBottom:12,color:C.textMute}}>♪</div>
+          <div style={{fontSize:"0.86rem",color:C.textSec,marginBottom:6}}>この日のデータはまだありません</div>
+          <div style={{fontSize:"0.73rem",color:C.textMute}}>前日・翌日ボタンで他の日付をご覧ください</div>
+        </div>
+      )}
+      <div style={{marginTop:48,paddingTop:24,borderTop:`1px solid ${C.border}`,fontSize:"0.7rem",color:C.textMute,lineHeight:1.9}}>
+        <span style={{color:C.gold,fontWeight:700}}>Release Tune</span>　その日にリリースされた楽曲を年代を超えてご紹介します。
+      </div>
+    </div>
+  </>);
+}
+
+function TopCard({track,index,onSelect}){
+  const [visible,setVisible]=useState(false);
+  const [hov,setHov]=useState(false);
+  useEffect(()=>{const t=setTimeout(()=>setVisible(true),index*70);return()=>clearTimeout(t);},[index]);
+  return(<div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+    style={{opacity:visible?1:0,transform:visible?"translateY(0)":"translateY(12px)",
+    transition:"opacity 0.35s ease,transform 0.35s ease,background 0.15s",
+    background:hov?C.surface2:C.surface1,borderRadius:8,padding:14,
+    display:"grid",gridTemplateColumns:"68px 1fr",gap:14}}>
+    <div onClick={onSelect} style={{cursor:"pointer"}}><Jacket jacket={track.jacket} title={track.title} size={68}/></div>
+    <div style={{minWidth:0}}>
+      <div onClick={onSelect} style={{fontSize:"0.95rem",fontWeight:700,color:C.textPri,lineHeight:1.3,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",cursor:"pointer"}}>{track.title}</div>
+      <div style={{fontSize:"0.8rem",color:C.textSec,marginBottom:8,fontWeight:500}}>{track.artist}</div>
+      {track.note&&<div style={{fontSize:"0.74rem",color:C.textPri,lineHeight:1.7,marginBottom:10,opacity:0.85}}>{track.note}</div>}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        {track.links?.spotify&&<SvcLink href={track.links.spotify} iconColor="#1DB954" icon={<SpIcon/>} label="Spotify"/>}
+        {track.links?.apple&&<SvcLink href={track.links.apple} iconColor="#fc3c44" icon={<ApIcon/>} label="Apple Music"/>}
+        {track.links?.amazon&&<SvcLink href={track.links.amazon} iconColor="#00A8E1" icon={<AmIcon/>} label="Amazon Music"/>}
+        {track.links?.youtube&&<SvcLink href={track.links.youtube} iconColor="#FF0000" icon={<YtIcon/>} label="YouTube"/>}
+      </div>
+    </div>
+  </div>);
+}
+
+// ── 詳細ページ ────────────────────────────────────────────────
+function DetailPage({track,onBack,onSelectTrack,db}){
+  const mmdd=getMmdd(track,db);
+  const siblings=mmdd?(db[mmdd]||[]).filter(t=>t.id!==track.id).sort((a,b)=>a.releaseDate.localeCompare(b.releaseDate)):[];
+  const [m,d]=mmdd?mmdd.split("-").map(Number):[0,0];
+  const years=yearsAgo(track.releaseDate);
+
+  // SNSシェア
+  const shareText=`📅${formatDate(track.releaseDate)}リリース\n${track.artist}「${track.title}」${years>0?`（${years}年前！）`:""}\n\n#ReleaseTune\nhttps://releasetune.com/`;
+  function shareX(){ window.open("https://x.com/intent/tweet?text="+encodeURIComponent(shareText),"_blank"); }
+  function shareThreads(){ window.open("https://www.threads.net/intent/post?text="+encodeURIComponent(shareText),"_blank"); }
+
+  return(<>
+    <div style={{background:`linear-gradient(180deg,#c8a84b44 0%,#c8a84b18 50%,${C.bg} 100%)`,padding:"24px 20px 32px"}}>
+      <div style={{maxWidth:600,margin:"0 auto"}}>
+        <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",color:C.textSec,fontSize:"0.78rem",cursor:"pointer",marginBottom:24,padding:0,fontFamily:"inherit"}}>
+          ← {m}月{d}日のリリース一覧
+        </button>
+        <div style={{display:"flex",gap:24,alignItems:"flex-end"}}>
+          <Jacket jacket={track.jacket} title={track.title} size={140}/>
+          <div style={{minWidth:0,paddingBottom:4}}>
+            <h1 style={{fontFamily:"'Zen Old Mincho',serif",fontSize:"clamp(1.4rem,5vw,2rem)",fontWeight:700,color:C.textPri,lineHeight:1.2,marginBottom:10}}>{track.title}</h1>
+            <div style={{fontSize:"0.9rem",color:C.textSec,fontWeight:600,marginBottom:8}}>{track.artist}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontSize:"0.72rem",color:C.textMute}}>{formatDate(track.releaseDate)}</span>
+              {years>0&&<span style={{fontSize:"0.72rem",color:C.gold,background:`${C.gold}22`,border:`1px solid ${C.gold}44`,padding:"1px 8px",borderRadius:3,fontWeight:700}}>{years}年前</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style={{maxWidth:600,margin:"0 auto",padding:"0 20px",paddingBottom:60}}>
+      {track.note&&(<div style={{padding:"24px 0",borderBottom:`1px solid ${C.border}`}}>
+        <p style={{fontSize:"0.88rem",color:C.textPri,lineHeight:1.9,opacity:0.9}}>{track.note}</p>
+      </div>)}
+      <div style={{padding:"24px 0",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{fontSize:"0.68rem",color:C.textMute,letterSpacing:"0.1em",marginBottom:14}}>試聴・再生</div>
+        <SvcGrid links={track.links}/>
+      </div>
+      <div style={{padding:"24px 0",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{fontSize:"0.68rem",color:C.textMute,letterSpacing:"0.1em",marginBottom:14}}>シェア</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={shareX} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:4,border:`1px solid ${C.border}`,background:"transparent",color:C.textSec,fontSize:"0.8rem",cursor:"pointer",fontFamily:"inherit"}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.261 5.636 5.903-5.636zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            X でシェア
+          </button>
+          <button onClick={shareThreads} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:4,border:`1px solid ${C.border}`,background:"transparent",color:C.textSec,fontSize:"0.8rem",cursor:"pointer",fontFamily:"inherit"}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.505-1.808-1.343-3.233-2.487-4.234-1.19-1.036-2.868-1.587-4.9-1.6-2.832.019-4.952.965-6.475 2.898-1.426 1.806-2.168 4.298-2.196 7.405.028 3.11.77 5.6 2.196 7.405 1.522 1.93 3.64 2.876 6.467 2.895 2.256-.028 3.9-.605 5.072-1.744 1.346-1.31 1.895-3.256 1.895-5.457 0-.144-.005-.287-.016-.43h-7.019v-2.016h9.115c.028.29.044.585.044.883 0 2.9-.74 5.406-2.41 7.03C17.42 23.278 15.127 24 12.186 24z"/></svg>
+            Threads でシェア
+          </button>
+        </div>
+      </div>
+      {siblings.length>0&&(
+        <div style={{padding:"24px 0"}}>
+          <div style={{fontSize:"0.92rem",fontWeight:700,color:C.textPri,marginBottom:16}}>{m}月{d}日にリリースされた他の楽曲</div>
+          <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            {siblings.map((sib,i,arr)=>{
+              const year=sib.releaseDate.split("-")[0];
+              const prevYear=arr[i-1]?.releaseDate.split("-")[0];
+              return(<div key={sib.id}>
+                {year!==prevYear&&(
+                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0 8px"}}>
+                    <span style={{fontSize:"0.72rem",fontWeight:700,color:C.textMute,letterSpacing:"0.1em"}}>{year}</span>
+                    <div style={{flex:1,height:1,background:C.border}}/>
+                    <span style={{fontSize:"0.66rem",color:C.gold}}>{TODAY.getFullYear()-parseInt(year)}年前</span>
+                  </div>
+                )}
+                <SibCard track={sib} index={i} onSelect={()=>onSelectTrack(sib)}/>
+              </div>);
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  </>);
+}
+
+function SibCard({track,index,onSelect}){
+  const [hov,setHov]=useState(false);
+  const [visible,setVisible]=useState(false);
+  useEffect(()=>{const t=setTimeout(()=>setVisible(true),index*60);return()=>clearTimeout(t);},[index]);
+  return(<div onClick={onSelect} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+    style={{opacity:visible?1:0,transform:visible?"translateY(0)":"translateY(8px)",
+    transition:"opacity 0.3s ease,transform 0.3s ease,background 0.15s",
+    background:hov?C.surface2:C.surface1,borderRadius:8,padding:"12px 14px",
+    display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+    <Jacket jacket={track.jacket} title={track.title} size={48}/>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{fontSize:"0.88rem",fontWeight:700,color:C.textPri,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{track.title}</div>
+      <div style={{fontSize:"0.76rem",color:C.textSec,marginTop:3}}>{track.artist}</div>
+    </div>
+    <span style={{color:C.textMute,fontSize:"0.9rem",flexShrink:0}}>›</span>
+  </div>);
+}
+
+// ── メインアプリ ──────────────────────────────────────────────
+function App(){
+  const [db,setDb]=useState(null);
+  const [viewDate,setViewDate]=useState(TODAY_MMDD);
+  const [selectedTrack,setSelectedTrack]=useState(null);
+  const scrollRef=useRef(null);
+
+  useEffect(()=>{
+    fetch("./data/tracks.json")
+      .then(r=>r.json())
+      .then(data=>{
+        setDb(data);
+        document.getElementById("loading").style.display="none";
+      })
+      .catch(err=>console.error("tracks.json 読み込み失敗:",err));
+  },[]);
+
+  function handleSelectTrack(track){setSelectedTrack(track);scrollRef.current?.scrollTo(0,0);}
+  function handleBack(){setSelectedTrack(null);scrollRef.current?.scrollTo(0,0);}
+
+  if(!db) return null;
+
+  return(<div ref={scrollRef} style={{height:"100vh",overflowY:"auto",background:C.bg,color:C.textPri,fontFamily:"'Noto Sans JP',sans-serif"}}>
+    <SiteHeader onLogoClick={handleBack}/>
+    {selectedTrack
+      ?<DetailPage track={selectedTrack} onBack={handleBack} onSelectTrack={handleSelectTrack} db={db}/>
+      :<TopPage viewDate={viewDate} setViewDate={setViewDate} onSelectTrack={handleSelectTrack} db={db}/>
+    }
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

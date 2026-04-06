@@ -102,7 +102,7 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
         </div>
         <NavBtn onClick={() => shiftDate(1)}>翌日 ▶</NavBtn>
         {!isToday && (
-          <NavBtn onClick={() => router.push(`/date/${today}`)} accent>
+          <NavBtn onClick={() => router.push("/")} accent>
             今日に戻る
           </NavBtn>
         )}

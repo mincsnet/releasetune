@@ -58,7 +58,7 @@ export default async function TrackPage({ params }: Props) {
   const allTracks = await getTracksByMmdd(mmdd);
   const siblings = allTracks
     .filter((t) => t.id !== track.id)
-    .sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
+    .sort((a, b) => b.releaseDate.localeCompare(a.releaseDate));
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>

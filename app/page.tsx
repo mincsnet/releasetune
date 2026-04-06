@@ -1,9 +1,14 @@
 import { redirect } from "next/navigation";
-import { getTodayMmdd } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default function HomePage() {
-  const today = getTodayMmdd();
-  redirect(`/date/${today}`);
+  // サーバー側で現在時刻をJSTで取得
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" })
+  );
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  redirect(`/date/${m}-${d}`);
 }

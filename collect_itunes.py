@@ -87,6 +87,7 @@ def itunes_get_albums(artist_id: int, limit: int = 200) -> list[dict]:
                 "country": "JP",
                 "entity":  "album",
                 "limit":   limit,
+                "lang":    "ja_jp",   # 日本語タイトル優先
             },
             timeout=15,
         )

@@ -88,9 +88,13 @@ function Jacket({jacket, title, size=68}){
     style={{width:size,height:size,flexShrink:0,borderRadius:4,objectFit:"cover",display:"block"}}/>);
 }
 
-function SvcLink({href,iconColor,icon,label,large}){
+function SvcLink({href,iconColor,icon,label,large,trackTitle,artist}){
   const [hov,setHov]=useState(false);
+  function handleClick(){
+    gaEvent("click_streaming",{service:label,track_title:trackTitle||"",artist:artist||""});
+  }
   return(<a href={href} target="_blank" rel="noopener noreferrer"
+    onClick={handleClick}
     onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
     style={{display:"inline-flex",alignItems:"center",gap:6,
       fontSize:large?"0.8rem":"0.68rem",padding:large?"9px 14px":"4px 10px",
@@ -102,7 +106,7 @@ function SvcLink({href,iconColor,icon,label,large}){
   </a>);
 }
 
-function SvcGrid({links}){
+function SvcGrid({links,trackTitle,artist}){
   const items=[
     links?.spotify&&{href:links.spotify,iconColor:"#1DB954",icon:<SpIcon s={14}/>,label:"Spotify"},
     links?.apple  &&{href:links.apple,  iconColor:"#fc3c44",icon:<ApIcon s={14}/>,label:"Apple Music"},
@@ -110,7 +114,7 @@ function SvcGrid({links}){
     links?.youtube&&{href:links.youtube,iconColor:"#FF0000",icon:<YtIcon s={14}/>,label:"YouTube"},
   ].filter(Boolean);
   return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-    {items.map(i=><SvcLink key={i.label} {...i} large/>)}
+    {items.map(i=><SvcLink key={i.label} {...i} large trackTitle={trackTitle} artist={artist}/>)}
   </div>);
 }
 
@@ -179,7 +183,7 @@ function TopPage({viewDate,setViewDate,onSelectTrack,db}){
               </div>
             </div>
             {featured.note&&<p style={{fontSize:"0.84rem",color:C.textPri,lineHeight:1.8,opacity:0.88,marginBottom:16}}>{featured.note}</p>}
-            <SvcGrid links={featured.links}/>
+            <SvcGrid links={featured.links} trackTitle={featured.title} artist={featured.artist}/>
             <button onClick={()=>onSelectTrack(featured)} style={{marginTop:12,background:"none",border:`1px solid ${C.border}`,color:C.textMute,borderRadius:4,padding:"6px 14px",fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit"}}>詳細を見る →</button>
           </div>
         )}
@@ -234,10 +238,10 @@ function TopCard({track,index,onSelect}){
       <div style={{fontSize:"0.8rem",color:C.textSec,marginBottom:8,fontWeight:500}}>{track.artist}</div>
       {track.note&&<div style={{fontSize:"0.74rem",color:C.textPri,lineHeight:1.7,marginBottom:10,opacity:0.85}}>{track.note}</div>}
       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-        {track.links?.spotify&&<SvcLink href={track.links.spotify} iconColor="#1DB954" icon={<SpIcon/>} label="Spotify"/>}
-        {track.links?.apple&&<SvcLink href={track.links.apple} iconColor="#fc3c44" icon={<ApIcon/>} label="Apple Music"/>}
-        {track.links?.amazon&&<SvcLink href={track.links.amazon} iconColor="#00A8E1" icon={<AmIcon/>} label="Amazon Music"/>}
-        {track.links?.youtube&&<SvcLink href={track.links.youtube} iconColor="#FF0000" icon={<YtIcon/>} label="YouTube"/>}
+        {track.links?.spotify&&<SvcLink href={track.links.spotify} iconColor="#1DB954" icon={<SpIcon/>} label="Spotify" trackTitle={track.title} artist={track.artist}/>}
+        {track.links?.apple&&<SvcLink href={track.links.apple} iconColor="#fc3c44" icon={<ApIcon/>} label="Apple Music" trackTitle={track.title} artist={track.artist}/>}
+        {track.links?.amazon&&<SvcLink href={track.links.amazon} iconColor="#00A8E1" icon={<AmIcon/>} label="Amazon Music" trackTitle={track.title} artist={track.artist}/>}
+        {track.links?.youtube&&<SvcLink href={track.links.youtube} iconColor="#FF0000" icon={<YtIcon/>} label="YouTube" trackTitle={track.title} artist={track.artist}/>}
       </div>
     </div>
   </div>);
@@ -252,8 +256,8 @@ function DetailPage({track,onBack,onSelectTrack,db}){
 
   // SNSシェア
   const shareText=`📅${formatDate(track.releaseDate)}リリース\n${track.artist}「${track.title}」${years>0?`（${years}年前！）`:""}\n\n#ReleaseTune\nhttps://releasetune.com/`;
-  function shareX(){ window.open("https://x.com/intent/tweet?text="+encodeURIComponent(shareText),"_blank"); }
-  function shareThreads(){ window.open("https://www.threads.net/intent/post?text="+encodeURIComponent(shareText),"_blank"); }
+  function shareX(){ gaEvent("share",{method:"X",track_title:track.title,artist:track.artist}); window.open("https://x.com/intent/tweet?text="+encodeURIComponent(shareText),"_blank"); }
+  function shareThreads(){ gaEvent("share",{method:"Threads",track_title:track.title,artist:track.artist}); window.open("https://www.threads.net/intent/post?text="+encodeURIComponent(shareText),"_blank"); }
 
   return(<>
     <div style={{background:`linear-gradient(180deg,#c8a84b44 0%,#c8a84b18 50%,${C.bg} 100%)`,padding:"24px 20px 32px"}}>
@@ -280,7 +284,7 @@ function DetailPage({track,onBack,onSelectTrack,db}){
       </div>)}
       <div style={{padding:"24px 0",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:"0.68rem",color:C.textMute,letterSpacing:"0.1em",marginBottom:14}}>試聴・再生</div>
-        <SvcGrid links={track.links}/>
+        <SvcGrid links={track.links} trackTitle={track.title} artist={track.artist}/>
       </div>
       <div style={{padding:"24px 0",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:"0.68rem",color:C.textMute,letterSpacing:"0.1em",marginBottom:14}}>シェア</div>
@@ -338,6 +342,16 @@ function SibCard({track,index,onSelect}){
   </div>);
 }
 
+// ── Google Analytics イベント計測 ────────────────────────────
+function gaEvent(name, params={}){
+  if(typeof gtag === "function") gtag("event", name, params);
+}
+function gaPageView(path, title){
+  if(typeof gtag === "function") gtag("event", "page_view", {
+    page_path: path, page_title: title
+  });
+}
+
 // ── メインアプリ ──────────────────────────────────────────────
 function App(){
   const [db,setDb]=useState(null);
@@ -351,12 +365,36 @@ function App(){
       .then(data=>{
         setDb(data);
         document.getElementById("loading").style.display="none";
+        // 初期ページビュー
+        gaPageView(`/date/${TODAY_MMDD}`, `${TODAY_MMDD} — Release Tune`);
       })
       .catch(err=>console.error("tracks.json 読み込み失敗:",err));
   },[]);
 
-  function handleSelectTrack(track){setSelectedTrack(track);scrollRef.current?.scrollTo(0,0);}
-  function handleBack(){setSelectedTrack(null);scrollRef.current?.scrollTo(0,0);}
+  function handleSelectTrack(track){
+    setSelectedTrack(track);
+    scrollRef.current?.scrollTo(0,0);
+    // 楽曲詳細ページビュー
+    gaPageView(`/track/${track.id}`, `${track.title} — ${track.artist}`);
+    gaEvent("view_track", {
+      track_id:    track.id,
+      track_title: track.title,
+      artist:      track.artist,
+      release_date:track.releaseDate,
+    });
+  }
+
+  function handleBack(){
+    setSelectedTrack(null);
+    scrollRef.current?.scrollTo(0,0);
+    gaPageView(`/date/${viewDate}`, `${viewDate} — Release Tune`);
+  }
+
+  function handleSetViewDate(date){
+    setViewDate(date);
+    gaPageView(`/date/${date}`, `${date} — Release Tune`);
+    gaEvent("navigate_date", { date });
+  }
 
   if(!db) return null;
 
@@ -364,7 +402,7 @@ function App(){
     <SiteHeader onLogoClick={handleBack}/>
     {selectedTrack
       ?<DetailPage track={selectedTrack} onBack={handleBack} onSelectTrack={handleSelectTrack} db={db}/>
-      :<TopPage viewDate={viewDate} setViewDate={setViewDate} onSelectTrack={handleSelectTrack} db={db}/>
+      :<TopPage viewDate={viewDate} setViewDate={handleSetViewDate} onSelectTrack={handleSelectTrack} db={db}/>
     }
   </div>);
 }

@@ -1,0 +1,49 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15, 15, 15, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  text-decoration: none;
+  opacity: 1 !important;
+  transition: opacity 0.15s;
+}
+
+.logo:hover {
+  opacity: 0.8 !important;
+}
+
+.logoRelease {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+}
+
+.logoTune {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-sec);
+  letter-spacing: 0.1em;
+}
+
+.tagline {
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  letter-spacing: 0.04em;
+  font-style: italic;
+}

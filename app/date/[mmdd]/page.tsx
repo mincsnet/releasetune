@@ -52,7 +52,7 @@ export default async function DatePage({ params }: Props) {
 
   const tracks = await getTracksByMmdd(mmdd);
   const sorted = [...tracks].sort((a, b) =>
-    a.releaseDate.localeCompare(b.releaseDate)
+    b.releaseDate.localeCompare(a.releaseDate)
   );
   const today = getTodayMmdd();
 

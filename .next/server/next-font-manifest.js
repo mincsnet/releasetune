@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/Users/MASAMI/releasetune/app/layout":["static/media/24f6ebe2756575bd-s.p.woff2","static/media/f313cc60b4c534f6-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';

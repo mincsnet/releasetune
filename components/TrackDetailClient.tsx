@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Track } from "@/lib/tracks";
-import { yearsAgo, formatDateJa } from "@/lib/tracks";
+import type { Track } from "@/lib/utils";
+import { yearsAgo, formatDateJa } from "@/lib/utils";
 import { Jacket } from "@/components/Jacket";
 import { SvcGrid } from "@/components/SvcLinks";
 import { gaEvent } from "@/components/GoogleAnalytics";

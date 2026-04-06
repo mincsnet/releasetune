@@ -3,8 +3,8 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Track } from "@/lib/tracks";
-import { yearsAgo, formatDateJa, parseMmdd } from "@/lib/tracks";
+import type { Track } from "@/lib/utils";
+import { yearsAgo, formatDateJa, parseMmdd } from "@/lib/utils";
 import { Jacket } from "@/components/Jacket";
 import { SvcGrid, TrackSvcLinks } from "@/components/SvcLinks";
 import { gaEvent } from "@/components/GoogleAnalytics";

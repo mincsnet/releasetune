@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTodayMmdd } from "@/lib/tracks";
+import { getTodayMmdd } from "@/lib/utils";
 import styles from "./SiteHeader.module.css";
 
 export function SiteHeader() {

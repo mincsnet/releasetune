@@ -7,7 +7,7 @@ export function SiteHeader() {
 
   return (
     <header className={styles.header}>
-      <Link href={`/date/${today}`} className={styles.logo}>
+      <Link href="/" className={styles.logo}>
         <span className={styles.logoRelease}>Release</span>
         <span className={styles.logoTune}>Tune</span>
       </Link>

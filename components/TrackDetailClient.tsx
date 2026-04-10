@@ -42,8 +42,8 @@ export function TrackDetailClient({ track, mmdd, month, day, siblings }: Props) 
         ← {month}月{day}日のリリース一覧
       </Link>
 
-      {/* ジャケット：全幅 */}
-      <div style={{ borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
+      {/* ジャケット：約2/3幅・中央寄せ */}
+      <div style={{ width: "66%", margin: "0 auto 24px", borderRadius: 12, overflow: "hidden" }}>
         <Jacket jacket={track.jacket} title={track.title} fullWidth />
       </div>
 

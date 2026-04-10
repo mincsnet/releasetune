@@ -105,13 +105,19 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px 60px" }}>
         {tracks.length > 0 ? (
           <>
-            {/* フィーチャード楽曲（縦並びレイアウト） */}
+            {/* フィーチャード楽曲 */}
             {featured && (
               <div style={{ padding: "28px 0", borderBottom: "1px solid var(--border)" }}>
-                {/* ジャケット：全幅 */}
+                {/* ジャケット：約2/3幅・中央寄せ */}
                 <Link
                   href={`/track/${featured.id}`}
-                  style={{ display: "block", borderRadius: 12, overflow: "hidden", marginBottom: 20 }}
+                  style={{
+                    display: "block",
+                    width: "66%",
+                    margin: "0 auto 20px",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                  }}
                   onClick={() => gaEvent("view_track", { track_id: featured.id, track_title: featured.title, artist: featured.artist })}
                 >
                   <Jacket jacket={featured.jacket} title={featured.title} fullWidth />
@@ -186,7 +192,7 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
               </div>
             )}
 
-            {/* その他の楽曲一覧 */}
+            {/* その他の楽曲一覧（旧来の横並びレイアウト） */}
             {others.length > 0 && (
               <div style={{ paddingTop: 24 }}>
                 <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--text-pri)", marginBottom: 4 }}>
@@ -242,11 +248,10 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
   );
 }
 
-// ── トラックカード（縦並びレイアウト） ────────────────────────────
+// ── トラックカード（横並びレイアウト） ────────────────────────────
 
 function TrackCard({ track, index }: { track: Track; index: number }) {
   const [hov, setHov] = useState(false);
-  const years = yearsAgo(track.releaseDate);
 
   return (
     <div
@@ -254,71 +259,50 @@ function TrackCard({ track, index }: { track: Track; index: number }) {
       onMouseLeave={() => setHov(false)}
       style={{
         background: hov ? "var(--surface2)" : "var(--surface1)",
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 8,
+        padding: 14,
+        display: "grid",
+        gridTemplateColumns: "68px 1fr",
+        gap: 14,
         animation: `fadeUp 0.35s ease both`,
-        animationDelay: `${index * 60}ms`,
+        animationDelay: `${index * 70}ms`,
         transition: "background 0.15s",
       }}
     >
-      {/* ジャケット：全幅 */}
-      <Link
-        href={`/track/${track.id}`}
-        style={{ display: "block", borderRadius: 8, overflow: "hidden", marginBottom: 14 }}
-        onClick={() => gaEvent("view_track", { track_id: track.id, track_title: track.title, artist: track.artist })}
-      >
-        <Jacket jacket={track.jacket} title={track.title} fullWidth />
+      <Link href={`/track/${track.id}`}>
+        <Jacket jacket={track.jacket} title={track.title} size={68} />
       </Link>
-
-      {/* タイトル・アーティスト・リリース日：中央寄せ */}
-      <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <Link href={`/track/${track.id}`} style={{ textDecoration: "none" }}>
+      <div style={{ minWidth: 0 }}>
+        <Link
+          href={`/track/${track.id}`}
+          style={{ textDecoration: "none" }}
+          onClick={() => gaEvent("view_track", { track_id: track.id, track_title: track.title, artist: track.artist })}
+        >
           <div
             style={{
-              fontSize: "1rem",
+              fontSize: "0.95rem",
               fontWeight: 700,
               color: "var(--text-pri)",
               lineHeight: 1.3,
-              marginBottom: 6,
+              marginBottom: 2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             {track.title}
           </div>
         </Link>
-        <div style={{ fontSize: "0.85rem", color: "var(--text-sec)", fontWeight: 500, marginBottom: 6 }}>
+        <div style={{ fontSize: "0.8rem", color: "var(--text-sec)", marginBottom: 8, fontWeight: 500 }}>
           {track.artist}
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.72rem", color: "var(--text-mute)" }}>
-            {formatDateJa(track.releaseDate)}
-          </span>
-          {years > 0 && (
-            <span
-              style={{
-                fontSize: "0.68rem",
-                color: "var(--gold)",
-                background: "#c8a84b22",
-                border: "1px solid #c8a84b44",
-                padding: "1px 7px",
-                borderRadius: 3,
-                fontWeight: 700,
-              }}
-            >
-              {years}年前
-            </span>
-          )}
-        </div>
+        {track.note && (
+          <div style={{ fontSize: "0.74rem", color: "var(--text-pri)", lineHeight: 1.7, marginBottom: 10, opacity: 0.85 }}>
+            {track.note}
+          </div>
+        )}
+        <TrackSvcLinks links={track.links} trackTitle={track.title} artist={track.artist} />
       </div>
-
-      {/* コメント */}
-      {track.note && (
-        <p style={{ fontSize: "0.74rem", color: "var(--text-pri)", lineHeight: 1.7, marginBottom: 12, opacity: 0.85 }}>
-          {track.note}
-        </p>
-      )}
-
-      {/* 試聴リンク */}
-      <TrackSvcLinks links={track.links} trackTitle={track.title} artist={track.artist} />
     </div>
   );
 }

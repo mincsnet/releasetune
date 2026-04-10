@@ -40,8 +40,7 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
       {/* ヒーローエリア */}
       <div
         style={{
-          background:
-            "linear-gradient(180deg,#c8a84b22 0%,#c8a84b0a 40%,#0f0f0f 100%)",
+          background: "linear-gradient(180deg,#c8a84b22 0%,#c8a84b0a 40%,#0f0f0f 100%)",
           padding: "32px 20px 24px",
           textAlign: "center",
         }}
@@ -58,13 +57,7 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
         >
           {month}月{day}日
         </h1>
-        <p
-          style={{
-            fontSize: "0.74rem",
-            color: "var(--text-mute)",
-            letterSpacing: "0.08em",
-          }}
-        >
+        <p style={{ fontSize: "0.74rem", color: "var(--text-mute)", letterSpacing: "0.08em" }}>
           ON THIS DAY
         </p>
       </div>
@@ -109,131 +102,82 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
       </div>
 
       {/* コンテンツ */}
-      <div
-        style={{
-          maxWidth: 600,
-          margin: "0 auto",
-          padding: "0 20px 60px",
-        }}
-      >
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px 60px" }}>
         {tracks.length > 0 ? (
           <>
-            {/* フィーチャード楽曲 */}
+            {/* フィーチャード楽曲（縦並びレイアウト） */}
             {featured && (
-              <div
-                style={{
-                  padding: "24px 0",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 20,
-                    alignItems: "flex-end",
-                    marginBottom: 16,
-                  }}
+              <div style={{ padding: "28px 0", borderBottom: "1px solid var(--border)" }}>
+                {/* ジャケット：全幅 */}
+                <Link
+                  href={`/track/${featured.id}`}
+                  style={{ display: "block", borderRadius: 12, overflow: "hidden", marginBottom: 20 }}
+                  onClick={() => gaEvent("view_track", { track_id: featured.id, track_title: featured.title, artist: featured.artist })}
                 >
-                  <Link href={`/track/${featured.id}`} style={{ flexShrink: 0 }}>
-                    <Jacket jacket={featured.jacket} title={featured.title} size={120} />
-                  </Link>
-                  <div style={{ minWidth: 0, paddingBottom: 4 }}>
-                    <Link
-                      href={`/track/${featured.id}`}
-                      style={{ textDecoration: "none" }}
-                      onClick={() =>
-                        gaEvent("view_track", {
-                          track_id: featured.id,
-                          track_title: featured.title,
-                          artist: featured.artist,
-                        })
-                      }
+                  <Jacket jacket={featured.jacket} title={featured.title} fullWidth />
+                </Link>
+
+                {/* タイトル・アーティスト・リリース日：中央寄せ */}
+                <div style={{ textAlign: "center", marginBottom: 20 }}>
+                  <Link href={`/track/${featured.id}`} style={{ textDecoration: "none" }}>
+                    <h2
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: "clamp(1.2rem, 5vw, 1.8rem)",
+                        fontWeight: 700,
+                        color: "var(--text-pri)",
+                        lineHeight: 1.25,
+                        marginBottom: 10,
+                      }}
                     >
-                      <h2
+                      {featured.title}
+                    </h2>
+                  </Link>
+                  <div style={{ fontSize: "0.95rem", color: "var(--text-sec)", fontWeight: 600, marginBottom: 8 }}>
+                    {featured.artist}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "0.76rem", color: "var(--text-mute)" }}>
+                      {formatDateJa(featured.releaseDate)}
+                    </span>
+                    {yearsAgo(featured.releaseDate) > 0 && (
+                      <span
                         style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: "clamp(1.1rem, 4vw, 1.6rem)",
+                          fontSize: "0.72rem",
+                          color: "var(--gold)",
+                          background: "#c8a84b22",
+                          border: "1px solid #c8a84b44",
+                          padding: "1px 8px",
+                          borderRadius: 3,
                           fontWeight: 700,
-                          color: "var(--text-pri)",
-                          lineHeight: 1.2,
-                          marginBottom: 6,
                         }}
                       >
-                        {featured.title}
-                      </h2>
-                    </Link>
-                    <div
-                      style={{
-                        fontSize: "0.85rem",
-                        color: "var(--text-sec)",
-                        fontWeight: 600,
-                        marginBottom: 6,
-                      }}
-                    >
-                      {featured.artist}
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.72rem", color: "var(--text-mute)" }}>
-                        {formatDateJa(featured.releaseDate)}
+                        {yearsAgo(featured.releaseDate)}年前
                       </span>
-                      {yearsAgo(featured.releaseDate) > 0 && (
-                        <span
-                          style={{
-                            fontSize: "0.72rem",
-                            color: "var(--gold)",
-                            background: "#c8a84b22",
-                            border: "1px solid #c8a84b44",
-                            padding: "1px 8px",
-                            borderRadius: 3,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {yearsAgo(featured.releaseDate)}年前
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
 
+                {/* コメント */}
                 {featured.note && (
-                  <p
-                    style={{
-                      fontSize: "0.84rem",
-                      color: "var(--text-pri)",
-                      lineHeight: 1.8,
-                      opacity: 0.88,
-                      marginBottom: 16,
-                    }}
-                  >
+                  <p style={{ fontSize: "0.84rem", color: "var(--text-pri)", lineHeight: 1.8, opacity: 0.88, marginBottom: 20 }}>
                     {featured.note}
                   </p>
                 )}
 
-                <SvcGrid
-                  links={featured.links}
-                  trackTitle={featured.title}
-                  artist={featured.artist}
-                />
+                {/* 試聴リンク */}
+                <SvcGrid links={featured.links} trackTitle={featured.title} artist={featured.artist} />
 
                 <Link
                   href={`/track/${featured.id}`}
                   style={{
                     display: "inline-block",
-                    marginTop: 12,
-                    background: "none",
+                    marginTop: 14,
                     border: "1px solid var(--border)",
                     color: "var(--text-mute)",
                     borderRadius: 4,
                     padding: "6px 14px",
                     fontSize: "0.74rem",
-                    fontFamily: "var(--font-body)",
                     textDecoration: "none",
                   }}
                 >
@@ -245,24 +189,10 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
             {/* その他の楽曲一覧 */}
             {others.length > 0 && (
               <div style={{ paddingTop: 24 }}>
-                <div
-                  style={{
-                    fontSize: "0.92rem",
-                    fontWeight: 700,
-                    color: "var(--text-pri)",
-                    marginBottom: 4,
-                  }}
-                >
+                <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--text-pri)", marginBottom: 4 }}>
                   {month}月{day}日にリリースされた他の楽曲
                 </div>
-                <div
-                  style={{
-                    fontSize: "0.68rem",
-                    color: "var(--text-mute)",
-                    marginBottom: 16,
-                    letterSpacing: "0.04em",
-                  }}
-                >
+                <div style={{ fontSize: "0.68rem", color: "var(--text-mute)", marginBottom: 16, letterSpacing: "0.04em" }}>
                   {others.length} TRACKS
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -273,31 +203,11 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
                     return (
                       <div key={track.id}>
                         {year !== prevYear && (
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              padding: "14px 0 8px",
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: "0.72rem",
-                                fontWeight: 700,
-                                color: "var(--text-mute)",
-                                letterSpacing: "0.1em",
-                              }}
-                            >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 0 8px" }}>
+                            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-mute)", letterSpacing: "0.1em" }}>
                               {year}
                             </span>
-                            <div
-                              style={{
-                                flex: 1,
-                                height: 1,
-                                background: "var(--border)",
-                              }}
-                            />
+                            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
                             <span style={{ fontSize: "0.66rem", color: "var(--gold)" }}>
                               {currentYear - parseInt(year)}年前
                             </span>
@@ -323,16 +233,7 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: 48,
-            paddingTop: 24,
-            borderTop: "1px solid var(--border)",
-            fontSize: "0.7rem",
-            color: "var(--text-mute)",
-            lineHeight: 1.9,
-          }}
-        >
+        <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid var(--border)", fontSize: "0.7rem", color: "var(--text-mute)", lineHeight: 1.9 }}>
           <span style={{ color: "var(--gold)", fontWeight: 700 }}>Release Tune</span>
           　その日にリリースされた楽曲を年代を超えてご紹介します。
         </div>
@@ -341,10 +242,11 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
   );
 }
 
-// ── トラックカード ────────────────────────────────────────────
+// ── トラックカード（縦並びレイアウト） ────────────────────────────
 
 function TrackCard({ track, index }: { track: Track; index: number }) {
   const [hov, setHov] = useState(false);
+  const years = yearsAgo(track.releaseDate);
 
   return (
     <div
@@ -352,75 +254,71 @@ function TrackCard({ track, index }: { track: Track; index: number }) {
       onMouseLeave={() => setHov(false)}
       style={{
         background: hov ? "var(--surface2)" : "var(--surface1)",
-        borderRadius: 8,
-        padding: 14,
-        display: "grid",
-        gridTemplateColumns: "68px 1fr",
-        gap: 14,
+        borderRadius: 12,
+        padding: 16,
         animation: `fadeUp 0.35s ease both`,
-        animationDelay: `${index * 70}ms`,
+        animationDelay: `${index * 60}ms`,
         transition: "background 0.15s",
       }}
     >
-      <Link href={`/track/${track.id}`}>
-        <Jacket jacket={track.jacket} title={track.title} size={68} />
+      {/* ジャケット：全幅 */}
+      <Link
+        href={`/track/${track.id}`}
+        style={{ display: "block", borderRadius: 8, overflow: "hidden", marginBottom: 14 }}
+        onClick={() => gaEvent("view_track", { track_id: track.id, track_title: track.title, artist: track.artist })}
+      >
+        <Jacket jacket={track.jacket} title={track.title} fullWidth />
       </Link>
-      <div style={{ minWidth: 0 }}>
-        <Link
-          href={`/track/${track.id}`}
-          style={{ textDecoration: "none" }}
-          onClick={() =>
-            gaEvent("view_track", {
-              track_id: track.id,
-              track_title: track.title,
-              artist: track.artist,
-            })
-          }
-        >
+
+      {/* タイトル・アーティスト・リリース日：中央寄せ */}
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <Link href={`/track/${track.id}`} style={{ textDecoration: "none" }}>
           <div
             style={{
-              fontSize: "0.95rem",
+              fontSize: "1rem",
               fontWeight: 700,
               color: "var(--text-pri)",
               lineHeight: 1.3,
-              marginBottom: 2,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              marginBottom: 6,
             }}
           >
             {track.title}
           </div>
         </Link>
-        <div
-          style={{
-            fontSize: "0.8rem",
-            color: "var(--text-sec)",
-            marginBottom: 8,
-            fontWeight: 500,
-          }}
-        >
+        <div style={{ fontSize: "0.85rem", color: "var(--text-sec)", fontWeight: 500, marginBottom: 6 }}>
           {track.artist}
         </div>
-        {track.note && (
-          <div
-            style={{
-              fontSize: "0.74rem",
-              color: "var(--text-pri)",
-              lineHeight: 1.7,
-              marginBottom: 10,
-              opacity: 0.85,
-            }}
-          >
-            {track.note}
-          </div>
-        )}
-        <TrackSvcLinks
-          links={track.links}
-          trackTitle={track.title}
-          artist={track.artist}
-        />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: "0.72rem", color: "var(--text-mute)" }}>
+            {formatDateJa(track.releaseDate)}
+          </span>
+          {years > 0 && (
+            <span
+              style={{
+                fontSize: "0.68rem",
+                color: "var(--gold)",
+                background: "#c8a84b22",
+                border: "1px solid #c8a84b44",
+                padding: "1px 7px",
+                borderRadius: 3,
+                fontWeight: 700,
+              }}
+            >
+              {years}年前
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* コメント */}
+      {track.note && (
+        <p style={{ fontSize: "0.74rem", color: "var(--text-pri)", lineHeight: 1.7, marginBottom: 12, opacity: 0.85 }}>
+          {track.note}
+        </p>
+      )}
+
+      {/* 試聴リンク */}
+      <TrackSvcLinks links={track.links} trackTitle={track.title} artist={track.artist} />
     </div>
   );
 }

@@ -107,7 +107,7 @@ export function TrackDetailClient({ track, mmdd, month, day, siblings }: Props) 
       </div>
 
       {/* YouTube埋め込み */}
-      {track.links?.youtubeId && (
+      {track.links?.youtubeId && track.links?.youtubeVerified && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: "0.68rem", color: "var(--text-mute)", letterSpacing: "0.1em", marginBottom: 10 }}>
             MV / 公式動画

@@ -12,6 +12,7 @@ export interface Track {
     amazon?: string;
     youtube?: string;
     youtubeId?: string;
+    youtubeVerified?: boolean;
   };
 }
 

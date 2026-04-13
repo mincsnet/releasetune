@@ -2,23 +2,25 @@
 fetch_youtube.py — YouTube Data API v3 で公式PVのIDを収集
 ================================================================
 tracks.json の楽曲に対してYouTube検索を行い、
-links.youtubeId フィールドを追加・更新する。
+links.youtubeId と links.youtubeVerified フィールドを追加・更新する。
+
+youtubeVerified:
+  true  = 公式動画として確認済み（サイトに表示）
+  false = 未確認（サイトに表示されない）
 
 使い方:
   python3 fetch_youtube.py                     # youtubeId未設定の全曲を対象
-  python3 fetch_youtube.py --limit 100         # 先頭100件のみ（テスト）
+  python3 fetch_youtube.py --limit 100         # 先頭100件のみ
   python3 fetch_youtube.py --artist "欅坂46"   # 1アーティスト指定
   python3 fetch_youtube.py --force             # 既存youtubeIdも上書き
 
-出力: data/tracks.json を上書き（10件ごとに自動保存）
-
-注意:
-  YouTube Data API v3 の無料枠は 1日10,000ユニット。
-  Search API は 1回=100ユニットなので、1日100件が上限。
-  --limit で件数を制限しながら数日に分けて実行してください。
+確認作業:
+  python3 fetch_youtube.py --show-unverified   # 未確認のURLを一覧表示
+  python3 fetch_youtube.py --verify TRACK_ID   # verified=trueに変更
+  python3 fetch_youtube.py --reject TRACK_ID   # youtubeIdを削除
 """
 
-import json, os, time, re
+import json, os, time, re, unicodedata
 from pathlib import Path
 from argparse import ArgumentParser
 import requests
@@ -28,32 +30,37 @@ load_dotenv()
 
 DATA_FILE = Path("data/tracks.json")
 API_KEY   = os.getenv("YOUTUBE_API_KEY", "")
-SLEEP     = 1.0  # リクエスト間隔（秒）
+SLEEP     = 1.0
 
 
-# ── YouTube Search API ──────────────────────────────────────────
+def is_japanese(text: str) -> bool:
+    for ch in text:
+        name = unicodedata.name(ch, "")
+        if "HIRAGANA" in name or "KATAKANA" in name or "CJK" in name:
+            return True
+    return False
 
-def search_youtube(title: str, artist: str) -> str | None:
-    """
-    アーティスト名 + 楽曲タイトルで検索し、最も適切な動画IDを返す。
-    公式チャンネルの動画を優先する。
-    """
-    # タイトルの末尾の " - Single" " - EP" などを除去して検索
-    clean_title = re.sub(r"\s*[-–]\s*(Single|EP|Album|Maxi Single).*$", "", title, flags=re.IGNORECASE).strip()
 
-    query = f"{artist} {clean_title} 公式"
+def clean_title(title: str) -> str:
+    return re.sub(r"\s*[-–]\s*(Single|EP|Album|Maxi Single|CD|DVD).*$", "", title, flags=re.IGNORECASE).strip()
+
+
+def search_youtube(title: str, artist: str) -> tuple[str | None, bool]:
+    q_title = clean_title(title)
+    has_ja  = is_japanese(title) or is_japanese(artist)
+    query   = f"{artist} {q_title} 公式" if has_ja else f"{artist} {q_title} official"
 
     try:
         resp = requests.get(
             "https://www.googleapis.com/youtube/v3/search",
             params={
-                "part":       "snippet",
-                "q":          query,
-                "type":       "video",
-                "maxResults": 5,
-                "regionCode": "JP",
+                "part":              "snippet",
+                "q":                 query,
+                "type":              "video",
+                "maxResults":        5,
+                "regionCode":        "JP",
                 "relevanceLanguage": "ja",
-                "key":        API_KEY,
+                "key":               API_KEY,
             },
             timeout=10,
         )
@@ -62,50 +69,96 @@ def search_youtube(title: str, artist: str) -> str | None:
         items = resp.json().get("items", [])
     except Exception as e:
         print(f"    [YT] APIエラー: {e}")
-        return None
+        return None, False
 
     if not items:
-        return None
+        return None, False
 
-    # 公式チャンネルらしいキーワードを含む動画を優先
-    official_keywords = ["official", "公式", "vevo", artist.lower()]
+    artist_norm = artist.lower()
+    official_kw = ["official", "公式", "vevo", artist_norm]
 
     for item in items:
-        snippet = item.get("snippet", {})
-        channel = snippet.get("channelTitle", "").lower()
-        vid_title = snippet.get("title", "").lower()
+        snippet     = item.get("snippet", {})
+        channel     = snippet.get("channelTitle", "").lower()
+        vid_title   = snippet.get("title", "").lower()
+        is_official = any(kw in channel or kw in vid_title for kw in official_kw)
+        if is_official:
+            return item["id"]["videoId"], has_ja
 
-        # チャンネル名や動画タイトルに公式キーワードが含まれるか
-        if any(kw in channel or kw in vid_title for kw in official_keywords):
-            return item["id"]["videoId"]
-
-    # 公式っぽいものがなければ先頭を返す
-    return items[0]["id"]["videoId"]
+    return items[0]["id"]["videoId"], False
 
 
-# ── メイン処理 ─────────────────────────────────────────────────
+def show_unverified(db: dict) -> None:
+    print("\n未確認の YouTube ID 一覧:")
+    print("-" * 60)
+    count = 0
+    for tracks in db.values():
+        for t in tracks:
+            links = t.get("links", {})
+            vid   = links.get("youtubeId", "")
+            if vid and not links.get("youtubeVerified", False):
+                print(f"  {t['artist']} | {t['title'][:30]}")
+                print(f"    https://www.youtube.com/watch?v={vid}")
+                print(f"    track ID: {t['id']}")
+                count += 1
+    print(f"\n合計 {count} 件")
+
+
+def update_by_track_id(db: dict, track_id: str, verified: bool) -> bool:
+    for tracks in db.values():
+        for t in tracks:
+            if t.get("id") == track_id:
+                if verified:
+                    t["links"]["youtubeVerified"] = True
+                    print(f"✅ verified=true: {t['artist']} | {t['title']}")
+                else:
+                    t["links"].pop("youtubeId", None)
+                    t["links"].pop("youtubeVerified", None)
+                    print(f"🗑  削除: {t['artist']} | {t['title']}")
+                return True
+    print(f"❌ track ID が見つかりません: {track_id}")
+    return False
+
 
 def main():
     if not API_KEY:
         print("❌ YOUTUBE_API_KEY が設定されていません。.env を確認してください。")
         return
 
-    parser = ArgumentParser(description="YouTube動画IDを収集")
-    parser.add_argument("--limit",  type=int, default=0,  help="処理件数上限（0=全件）")
-    parser.add_argument("--artist", type=str, default="", help="アーティスト名を指定")
-    parser.add_argument("--force",  action="store_true",  help="既存youtubeIdも上書き")
+    parser = ArgumentParser()
+    parser.add_argument("--limit",           type=int, default=0)
+    parser.add_argument("--artist",          type=str, default="")
+    parser.add_argument("--force",           action="store_true")
+    parser.add_argument("--show-unverified", action="store_true")
+    parser.add_argument("--verify",          type=str, default="")
+    parser.add_argument("--reject",          type=str, default="")
     args = parser.parse_args()
 
     with open(DATA_FILE, encoding="utf-8") as f:
         db = json.load(f)
 
-    # 対象楽曲を収集
+    if args.show_unverified:
+        show_unverified(db)
+        return
+
+    if args.verify:
+        if update_by_track_id(db, args.verify, True):
+            with open(DATA_FILE, "w", encoding="utf-8") as f:
+                json.dump(db, f, ensure_ascii=False, separators=(",", ":"))
+        return
+
+    if args.reject:
+        if update_by_track_id(db, args.reject, False):
+            with open(DATA_FILE, "w", encoding="utf-8") as f:
+                json.dump(db, f, ensure_ascii=False, separators=(",", ":"))
+        return
+
     targets = []
     for mmdd, tracks in db.items():
         for track in tracks:
             if args.artist and track.get("artist", "") != args.artist:
                 continue
-            links = track.get("links", {})
+            links  = track.get("links", {})
             has_id = bool(links.get("youtubeId"))
             if has_id and not args.force:
                 continue
@@ -116,47 +169,45 @@ def main():
 
     total = len(targets)
     print(f"対象: {total} 件")
-    print(f"APIキー: {API_KEY[:8]}...")
-    print(f"※ 1日の無料上限は100件です\n")
-
     if total > 100:
-        print(f"⚠️  {total}件は1日の無料上限(100件)を超えています。")
-        print(f"   --limit 100 オプションで件数を絞ることを推奨します。\n")
+        print(f"⚠️  1日の無料上限(100件)を超えています。--limit 100 推奨\n")
 
-    updated = 0
-    skipped = 0
+    updated = confident = skipped = 0
 
     for i, (mmdd, track) in enumerate(targets, 1):
         title  = track.get("title", "")
         artist = track.get("artist", "")
         print(f"[{i}/{total}] {artist} — {title[:30]}")
 
-        video_id = search_youtube(title, artist)
+        video_id, is_confident = search_youtube(title, artist)
 
         if video_id:
             if "links" not in track:
                 track["links"] = {}
-            track["links"]["youtubeId"] = video_id
-            print(f"  ✓ {video_id}")
+            track["links"]["youtubeId"]       = video_id
+            track["links"]["youtubeVerified"] = is_confident
+            flag = "✅ 高信頼" if is_confident else "⚠️  要確認"
+            print(f"  {flag} {video_id}")
             updated += 1
+            if is_confident:
+                confident += 1
         else:
             print(f"  - 見つかりませんでした")
             skipped += 1
 
-        # 10件ごとに保存
         if updated % 10 == 0 and updated > 0:
             with open(DATA_FILE, "w", encoding="utf-8") as f:
                 json.dump(db, f, ensure_ascii=False, separators=(",", ":"))
             print(f"  💾 {updated}件保存済み")
 
-    # 最終保存
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, separators=(",", ":"))
 
     print(f"\n✨ 完了！")
-    print(f"   取得成功: {updated} 件")
+    print(f"   取得成功: {updated} 件（高信頼: {confident} 件 / 要確認: {updated - confident} 件）")
     print(f"   見つからず: {skipped} 件")
-    print(f"   本日の消費ユニット数（目安）: {updated + skipped} × 100 = {(updated + skipped) * 100} ユニット")
+    print(f"   消費ユニット数（目安）: {(updated + skipped) * 100} ユニット")
+    print(f"\n要確認の動画を確認: python3 fetch_youtube.py --show-unverified")
 
 
 if __name__ == "__main__":

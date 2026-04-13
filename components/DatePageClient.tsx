@@ -252,7 +252,7 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
                 <SvcGrid links={featured.links} trackTitle={featured.title} artist={featured.artist} />
 
                 {/* YouTube埋め込み */}
-                {featured.links?.youtubeId && (
+                {featured.links?.youtubeId && featured.links?.youtubeVerified && (
                   <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: "0.64rem", color: "var(--text-mute)", letterSpacing: "0.1em", marginBottom: 8 }}>
                       MV / 公式動画

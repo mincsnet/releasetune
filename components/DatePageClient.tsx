@@ -35,69 +35,91 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
     router.push(`/date/${next}`);
   }
 
+  // 前日・翌日の月日を計算
+  const prevDate = (() => {
+    const [m, d] = mmdd.split("-").map(Number);
+    const b = new Date(2024, m - 1, d - 1);
+    return { month: b.getMonth() + 1, day: b.getDate() };
+  })();
+  const nextDate = (() => {
+    const [m, d] = mmdd.split("-").map(Number);
+    const b = new Date(2024, m - 1, d + 1);
+    return { month: b.getMonth() + 1, day: b.getDate() };
+  })();
+
   return (
     <>
-      {/* ヒーローエリア */}
-      <div
-        style={{
-          background: "linear-gradient(180deg,#c8a84b22 0%,#c8a84b0a 40%,#0f0f0f 100%)",
-          padding: "32px 20px 24px",
-          textAlign: "center",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "clamp(2rem, 7vw, 3rem)",
-            fontWeight: 700,
-            color: "var(--text-pri)",
-            lineHeight: 1.1,
-            marginBottom: 8,
-          }}
-        >
-          {month}月{day}日
-        </h1>
-        <p style={{ fontSize: "0.74rem", color: "var(--text-mute)", letterSpacing: "0.08em" }}>
-          ON THIS DAY
-        </p>
-      </div>
-
-      {/* 日付ナビゲーション */}
+      {/* ナビゲーション（ヒーローエリアを廃止・ON THIS DAY を当日枠内に） */}
       <div
         style={{
           maxWidth: 600,
           margin: "0 auto",
-          padding: "0 20px 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          flexWrap: "wrap",
+          padding: "14px 20px 16px",
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <NavBtn onClick={() => shiftDate(-1)}>◀ 前日</NavBtn>
         <div
           style={{
-            background: "var(--surface1)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-            padding: "5px 18px",
-            fontFamily: "var(--font-display)",
-            fontSize: "1rem",
-            fontWeight: 700,
-            color: "var(--text-pri)",
-            minWidth: 90,
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
           }}
         >
-          {month}月{day}日
-        </div>
-        <NavBtn onClick={() => shiftDate(1)}>翌日 ▶</NavBtn>
-        {!isToday && (
-          <NavBtn onClick={() => router.push("/")} accent>
-            今日に戻る
+          {/* 前日ボタン：◀ 日付 */}
+          <NavBtn onClick={() => shiftDate(-1)}>
+            <span style={{ fontSize: "0.6rem", opacity: 0.5 }}>◀</span>
+            {" "}{prevDate.month}月{prevDate.day}日
           </NavBtn>
+
+          {/* 当日枠：ON THIS DAY + 日付 */}
+          <div
+            style={{
+              background: "var(--surface1)",
+              border: "1px solid #c8a84b44",
+              borderRadius: 6,
+              padding: "6px 20px",
+              textAlign: "center",
+              minWidth: 110,
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.6rem",
+                color: "var(--text-mute)",
+                letterSpacing: "0.14em",
+                marginBottom: 3,
+              }}
+            >
+              ON THIS DAY
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "1.1rem",
+                fontWeight: 700,
+                color: "var(--text-pri)",
+                lineHeight: 1,
+              }}
+            >
+              {month}月{day}日
+            </div>
+          </div>
+
+          {/* 翌日ボタン：日付 ▶ */}
+          <NavBtn onClick={() => shiftDate(1)}>
+            {nextDate.month}月{nextDate.day}日{" "}
+            <span style={{ fontSize: "0.6rem", opacity: 0.5 }}>▶</span>
+          </NavBtn>
+        </div>
+
+        {/* 今日に戻るボタン（今日以外のとき） */}
+        {!isToday && (
+          <div style={{ textAlign: "center", marginTop: 10 }}>
+            <NavBtn onClick={() => router.push("/")} accent>
+              今日に戻る
+            </NavBtn>
+          </div>
         )}
       </div>
 

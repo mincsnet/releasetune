@@ -61,9 +61,12 @@ export function TrackDetailClient({ track, mmdd, month, day, siblings }: Props) 
         >
           {track.title}
         </h1>
-        <div style={{ fontSize: "1rem", color: "var(--text-sec)", fontWeight: 600, marginBottom: 10 }}>
+        <Link
+          href={`/artist/${encodeURIComponent(track.artist)}`}
+          style={{ fontSize: "1rem", color: "var(--text-sec)", fontWeight: 600, marginBottom: 10, display: "block", textDecoration: "none" }}
+        >
           {track.artist}
-        </div>
+        </Link>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: "0.78rem", color: "var(--text-mute)" }}>
             {formatDateJa(track.releaseDate)}

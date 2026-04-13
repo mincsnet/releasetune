@@ -35,3 +35,56 @@ export async function getTrackById(
 
 // 共通ユーティリティ re-export
 export { yearsAgo, formatDateJa, parseMmdd, getTodayMmdd } from "@/lib/utils";
+
+// ── アーティスト関連 ──────────────────────────────────────────
+
+export interface ArtistSummary {
+  name: string;
+  trackCount: number;
+  jacket: string;         // 代表曲のジャケット（最新曲）
+  tracks: (Track & { mmdd: string })[];
+}
+
+export async function getArtistByName(
+  name: string
+): Promise<ArtistSummary | null> {
+  const db = await getTracksDB();
+  const nameNorm = name.toLowerCase();
+
+  const matched: (Track & { mmdd: string })[] = [];
+
+  for (const [mmdd, tracks] of Object.entries(db)) {
+    for (const track of tracks) {
+      if (track.artist.toLowerCase() === nameNorm) {
+        matched.push({ ...track, mmdd });
+      }
+    }
+  }
+
+  if (matched.length === 0) return null;
+
+  // 新しい順にソート
+  matched.sort((a, b) => b.releaseDate.localeCompare(a.releaseDate));
+
+  // 代表ジャケット：ジャケットありの最新曲
+  const jacket =
+    matched.find((t) => t.jacket)?.jacket ?? "";
+
+  return {
+    name,
+    trackCount: matched.length,
+    jacket,
+    tracks: matched,
+  };
+}
+
+export async function getAllArtistNames(): Promise<string[]> {
+  const db = await getTracksDB();
+  const set = new Set<string>();
+  for (const tracks of Object.values(db)) {
+    for (const t of tracks) {
+      if (t.artist) set.add(t.artist);
+    }
+  }
+  return Array.from(set).sort();
+}

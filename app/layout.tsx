@@ -44,6 +44,12 @@ export default function RootLayout({
       <body>
         <GoogleAnalytics gaId="G-3SDZ478Y78" />
         {children}
+        <footer style={{borderTop:"1px solid #2a2a2a",padding:"20px",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:"20px",flexWrap:"wrap"}}>
+          <span style={{fontSize:"0.72rem",color:"#444"}}>© 2026 Release Tune</span>
+          <a href="/terms" style={{fontSize:"0.72rem",color:"#555",textDecoration:"none"}}>利用規約</a>
+          <a href="/privacy" style={{fontSize:"0.72rem",color:"#555",textDecoration:"none"}}>プライバシーポリシー</a>
+          <a href="https://x.com/releasetune" target="_blank" rel="noopener noreferrer" style={{fontSize:"0.72rem",color:"#555",textDecoration:"none"}}>X @releasetune</a>
+        </footer>
       </body>
     </html>
   );

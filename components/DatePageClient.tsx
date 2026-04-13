@@ -25,6 +25,12 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
   const router = useRouter();
   const { month, day } = parseMmdd(mmdd);
   const isToday = mmdd === today;
+  const [calOpen, setCalOpen] = useState(false);
+  const [calYear, setCalYear] = useState(() => {
+    const [m] = mmdd.split("-").map(Number);
+    return m <= 2 ? 2025 : 2026; // 表示年の初期値（適当に現在年）
+  });
+  const [calMonth, setCalMonth] = useState(() => parseInt(mmdd.split("-")[0]));
 
   const featuredIdx = useMemo(
     () => (tracks.length > 0 ? Math.floor(Math.random() * tracks.length) : 0),
@@ -55,77 +61,76 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
 
   return (
     <>
-      {/* ナビゲーション（ヒーローエリアを廃止・ON THIS DAY を当日枠内に） */}
+      {/* ナビゲーション */}
       <div
         style={{
           maxWidth: 600,
           margin: "0 auto",
-          padding: "14px 20px 16px",
-          borderBottom: "1px solid var(--border)",
+          padding: "12px 20px 0",
+          borderBottom: calOpen ? "none" : "1px solid var(--border)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          {/* 前日ボタン：◀ 日付 */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          {/* 前日ボタン */}
           <NavBtn onClick={() => shiftDate(-1)}>
             <span style={{ fontSize: "0.6rem", opacity: 0.5 }}>◀</span>
             {" "}{prevDate.month}月{prevDate.day}日
           </NavBtn>
 
-          {/* 当日枠：ON THIS DAY + 日付 */}
-          <div
+          {/* 当日枠：タップでカレンダー開閉 */}
+          <button
+            onClick={() => setCalOpen((v) => !v)}
             style={{
               background: "var(--surface1)",
               border: "1px solid #c8a84b44",
               borderRadius: 6,
-              padding: "6px 20px",
+              padding: "5px 16px",
               textAlign: "center",
               minWidth: 110,
+              cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
-            <div
-              style={{
-                fontSize: "0.6rem",
-                color: "var(--text-mute)",
-                letterSpacing: "0.14em",
-                marginBottom: 3,
-              }}
-            >
+            <div style={{ fontSize: "0.58rem", color: "var(--text-mute)", letterSpacing: "0.14em", marginBottom: 2 }}>
               ON THIS DAY
             </div>
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "1.1rem",
-                fontWeight: 700,
-                color: "var(--text-pri)",
-                lineHeight: 1,
-              }}
-            >
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-pri)", lineHeight: 1, marginBottom: 2 }}>
               {month}月{day}日
             </div>
-          </div>
+            <div style={{ fontSize: "0.58rem", color: "var(--text-mute)" }}>
+              {calOpen ? "▲ 閉じる" : "タップで日付選択"}
+            </div>
+          </button>
 
-          {/* 翌日ボタン：日付 ▶ */}
+          {/* 翌日ボタン */}
           <NavBtn onClick={() => shiftDate(1)}>
             {nextDate.month}月{nextDate.day}日{" "}
             <span style={{ fontSize: "0.6rem", opacity: 0.5 }}>▶</span>
           </NavBtn>
         </div>
 
-        {/* 今日に戻るボタン（今日以外のとき） */}
+        {/* 今日に戻るボタン */}
         {!isToday && (
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <NavBtn onClick={() => router.push("/")} accent>
-              今日に戻る
-            </NavBtn>
+          <div style={{ textAlign: "center", marginTop: 8, paddingBottom: calOpen ? 0 : 12 }}>
+            <NavBtn onClick={() => router.push("/")} accent>今日に戻る</NavBtn>
           </div>
+        )}
+
+        {/* カレンダー */}
+        {calOpen && (
+          <CalendarPicker
+            mmdd={mmdd}
+            calYear={calYear}
+            calMonth={calMonth}
+            setCalYear={setCalYear}
+            setCalMonth={setCalMonth}
+            onSelect={(m, d) => {
+              const next = `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+              setCalOpen(false);
+              gaEvent("navigate_date", { date: next });
+              router.push(`/date/${next}`);
+            }}
+          />
         )}
       </div>
 
@@ -416,5 +421,121 @@ function NavBtn({
     >
       {children}
     </button>
+  );
+}
+
+// ── カレンダーピッカー ────────────────────────────────────────
+
+const MONTHS_JA = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+const DOWS_JA = ["日","月","火","水","木","金","土"];
+
+function CalendarPicker({
+  mmdd,
+  calYear,
+  calMonth,
+  setCalYear,
+  setCalMonth,
+  onSelect,
+}: {
+  mmdd: string;
+  calYear: number;
+  calMonth: number;
+  setCalYear: (y: number) => void;
+  setCalMonth: (m: number) => void;
+  onSelect: (month: number, day: number) => void;
+}) {
+  const [curM, curD] = mmdd.split("-").map(Number);
+
+  function prevMonth() {
+    if (calMonth === 1) { setCalYear(calYear - 1); setCalMonth(12); }
+    else setCalMonth(calMonth - 1);
+  }
+  function nextMonth() {
+    if (calMonth === 12) { setCalYear(calYear + 1); setCalMonth(1); }
+    else setCalMonth(calMonth + 1);
+  }
+
+  // その月の1日の曜日と日数
+  const firstDow = new Date(calYear, calMonth - 1, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+
+  // 今日
+  const todayStr = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD
+  const todayMonth = parseInt(todayStr.slice(5, 7));
+  const todayDay = parseInt(todayStr.slice(8, 10));
+
+  return (
+    <div
+      style={{
+        borderBottom: "1px solid var(--border)",
+        padding: "10px 0 14px",
+      }}
+    >
+      {/* 月ヘッダー */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <button
+          onClick={prevMonth}
+          style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-mute)", borderRadius: 4, padding: "3px 10px", fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit" }}
+        >
+          ◀
+        </button>
+        <span style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "var(--text-pri)", fontWeight: 700 }}>
+          {MONTHS_JA[calMonth - 1]}
+        </span>
+        <button
+          onClick={nextMonth}
+          style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-mute)", borderRadius: 4, padding: "3px 10px", fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit" }}
+        >
+          ▶
+        </button>
+      </div>
+
+      {/* 曜日ヘッダー */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+        {DOWS_JA.map((d, i) => (
+          <div key={d} style={{ textAlign: "center", fontSize: "0.68rem", color: i === 0 ? "#c84b4b88" : i === 6 ? "#4b6ac888" : "var(--text-mute)", padding: "2px 0" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* 日付グリッド */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        {/* 空白セル */}
+        {Array.from({ length: firstDow }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+        {/* 日付セル */}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const d = i + 1;
+          const isSelected = calMonth === curM && d === curD;
+          const isToday = calMonth === todayMonth && d === todayDay;
+          const dow = (firstDow + i) % 7;
+          return (
+            <button
+              key={d}
+              onClick={() => onSelect(calMonth, d)}
+              style={{
+                background: isSelected ? "#c8a84b" : "transparent",
+                color: isSelected ? "#000" : isToday ? "var(--gold)" : dow === 0 ? "#c84b4b99" : dow === 6 ? "#4b6ac899" : "var(--text-sec)",
+                border: isToday && !isSelected ? "1px solid #c8a84b44" : "1px solid transparent",
+                borderRadius: "50%",
+                width: "100%",
+                aspectRatio: "1/1",
+                fontSize: "0.8rem",
+                fontWeight: isSelected || isToday ? 700 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {d}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

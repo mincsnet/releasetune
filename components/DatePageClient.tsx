@@ -315,9 +315,12 @@ function TrackCard({ track, index }: { track: Track; index: number }) {
             {track.title}
           </div>
         </Link>
-        <div style={{ fontSize: "0.8rem", color: "var(--text-sec)", marginBottom: 8, fontWeight: 500 }}>
+        <Link
+          href={`/artist/${encodeURIComponent(track.artist)}`}
+          style={{ fontSize: "0.8rem", color: "var(--text-sec)", marginBottom: 8, fontWeight: 500, display: "block", textDecoration: "none" }}
+        >
           {track.artist}
-        </div>
+        </Link>
         {track.note && (
           <div style={{ fontSize: "0.74rem", color: "var(--text-pri)", lineHeight: 1.7, marginBottom: 10, opacity: 0.85 }}>
             {track.note}

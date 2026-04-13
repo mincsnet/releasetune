@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTracksByMmdd, parseMmdd, getTodayMmdd } from "@/lib/tracks";
+import { getTracksByMmdd, parseMmdd, getTodayMmdd, getDebutsByMmdd } from "@/lib/tracks";
 import { SiteHeader } from "@/components/SiteHeader";
 import { DatePageClient } from "@/components/DatePageClient";
 
@@ -55,6 +55,7 @@ export default async function DatePage({ params }: Props) {
     b.releaseDate.localeCompare(a.releaseDate)
   );
   const today = getTodayMmdd();
+  const debuts = await getDebutsByMmdd(mmdd);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
@@ -63,6 +64,7 @@ export default async function DatePage({ params }: Props) {
         mmdd={mmdd}
         tracks={sorted}
         today={today}
+        debuts={debuts}
       />
     </div>
   );

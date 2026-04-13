@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getArtistByName } from "@/lib/tracks";
+import { getArtistByName, getDebutDB } from "@/lib/tracks";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ArtistPageClient } from "@/components/ArtistPageClient";
 
@@ -29,10 +29,12 @@ export default async function ArtistPage({ params }: Props) {
   const artistName = decodeURIComponent(name);
   const artist = await getArtistByName(artistName);
   if (!artist) notFound();
+  const debutDB = await getDebutDB();
+  const debutInfo = debutDB[artist.name] ?? null;
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <SiteHeader />
-      <ArtistPageClient artist={artist} />
+      <ArtistPageClient artist={artist} debutInfo={debutInfo} />
     </div>
   );
 }

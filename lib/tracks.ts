@@ -88,3 +88,74 @@ export async function getAllArtistNames(): Promise<string[]> {
   }
   return Array.from(set).sort();
 }
+
+// ── デビュー日関連 ────────────────────────────────────────────
+
+export interface DebutInfo {
+  artist: string;
+  debutDate: string;   // YYYY-MM-DD
+  debutTrack: string;
+  verified: boolean;
+}
+
+let _debutCache: Record<string, DebutInfo> | null = null;
+
+export async function getDebutDB(): Promise<Record<string, DebutInfo>> {
+  if (_debutCache) return _debutCache;
+  const filePath = path.join(process.cwd(), "debut_artists.csv");
+  try {
+    const raw = await fs.readFile(filePath, "utf-8");
+    const lines = raw.trim().split("\n");
+    const header = lines[0].split(",");
+    const result: Record<string, DebutInfo> = {};
+    for (const line of lines.slice(1)) {
+      const cols = line.split(",");
+      const row: Record<string, string> = {};
+      header.forEach((h, i) => { row[h.trim()] = (cols[i] ?? "").trim(); });
+      if (row.artist && row.debut_date) {
+        result[row.artist] = {
+          artist: row.artist,
+          debutDate: row.debut_date,
+          debutTrack: row.debut_track ?? "",
+          verified: row.verified === "true",
+        };
+      }
+    }
+    _debutCache = result;
+    return result;
+  } catch {
+    // ファイルがなければ空を返す
+    _debutCache = {};
+    return {};
+  }
+}
+
+/**
+ * 指定MM-DDにデビューしたアーティスト情報を返す
+ * tracks.json の楽曲と照合してデビュー曲も特定する
+ */
+export async function getDebutsByMmdd(
+  mmdd: string
+): Promise<(DebutInfo & { track?: Track })[]> {
+  const debutDB = await getDebutDB();
+  const tracksDB = await getTracksDB();
+  const tracksOnDate = tracksDB[mmdd] ?? [];
+
+  const results: (DebutInfo & { track?: Track })[] = [];
+
+  for (const info of Object.values(debutDB)) {
+    if (!info.debutDate) continue;
+    // MM-DD が一致するか確認（YYYY-MM-DD の 6文字目以降）
+    const debutMmdd = info.debutDate.slice(5); // "MM-DD"
+    if (debutMmdd !== mmdd) continue;
+
+    // その日の楽曲と照合（デビュー曲があれば添付）
+    const matchedTrack = tracksOnDate.find(
+      (t) => t.artist.toLowerCase() === info.artist.toLowerCase()
+    );
+
+    results.push({ ...info, track: matchedTrack });
+  }
+
+  return results;
+}

@@ -4,18 +4,24 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Track } from "@/lib/utils";
+import type { DebutInfo } from "@/lib/tracks";
 import { yearsAgo, formatDateJa, parseMmdd } from "@/lib/utils";
 import { Jacket } from "@/components/Jacket";
 import { SvcGrid, TrackSvcLinks } from "@/components/SvcLinks";
 import { gaEvent } from "@/components/GoogleAnalytics";
 
+interface DebutWithTrack extends DebutInfo {
+  track?: Track;
+}
+
 interface Props {
   mmdd: string;
   tracks: Track[];
   today: string;
+  debuts?: DebutWithTrack[];
 }
 
-export function DatePageClient({ mmdd, tracks, today }: Props) {
+export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
   const router = useRouter();
   const { month, day } = parseMmdd(mmdd);
   const isToday = mmdd === today;
@@ -122,6 +128,50 @@ export function DatePageClient({ mmdd, tracks, today }: Props) {
           </div>
         )}
       </div>
+
+      {/* デビュー記念日バナー */}
+      {debuts.length > 0 && (
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px" }}>
+          {debuts.map((d) => (
+            <Link
+              key={d.artist}
+              href={`/artist/${encodeURIComponent(d.artist)}`}
+              style={{ textDecoration: "none", display: "block", marginBottom: 8 }}
+            >
+              <div
+                style={{
+                  background: "#c8a84b18",
+                  border: "1px solid #c8a84b44",
+                  borderRadius: 8,
+                  padding: "10px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <span style={{ fontSize: "1rem" }}>🎂</span>
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--gold)", fontWeight: 700 }}>
+                    {d.artist}
+                  </span>
+                  <span style={{ fontSize: "0.78rem", color: "var(--text-sec)" }}>
+                    {" "}のデビュー記念日
+                  </span>
+                  {d.debutTrack && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-mute)", marginLeft: 6 }}>
+                      「{d.debutTrack}」
+                    </span>
+                  )}
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-mute)", marginLeft: 4 }}>
+                    {new Date().getFullYear() - parseInt(d.debutDate.slice(0, 4))}周年
+                  </span>
+                </div>
+                <span style={{ marginLeft: "auto", color: "var(--text-mute)", fontSize: "0.8rem", flexShrink: 0 }}>›</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* コンテンツ */}
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px 60px" }}>

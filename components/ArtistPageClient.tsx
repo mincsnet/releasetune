@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Track } from "@/lib/utils";
+import type { DebutInfo } from "@/lib/tracks";
 import { yearsAgo, formatDateJa } from "@/lib/utils";
 import { Jacket } from "@/components/Jacket";
 import { TrackSvcLinks } from "@/components/SvcLinks";
@@ -17,9 +18,10 @@ interface ArtistSummary {
 
 interface Props {
   artist: ArtistSummary;
+  debutInfo?: DebutInfo | null;
 }
 
-export function ArtistPageClient({ artist }: Props) {
+export function ArtistPageClient({ artist, debutInfo }: Props) {
   const { name, trackCount, jacket, tracks } = artist;
 
   return (
@@ -76,6 +78,17 @@ export function ArtistPageClient({ artist }: Props) {
         >
           {name}
         </h1>
+
+        {/* デビュー情報 */}
+        {debutInfo && (
+          <div style={{ fontSize: "0.78rem", color: "var(--text-mute)", marginBottom: 6, lineHeight: 1.7 }}>
+            <span style={{ color: "var(--gold)" }}>デビュー</span>
+            {" "}{debutInfo.debutDate.replace(/-/g, ".")}
+            {debutInfo.debutTrack && (
+              <span style={{ marginLeft: 6 }}>「{debutInfo.debutTrack}」</span>
+            )}
+          </div>
+        )}
 
         {/* 楽曲数 */}
         <div style={{ fontSize: "0.78rem", color: "var(--text-mute)", letterSpacing: "0.06em" }}>

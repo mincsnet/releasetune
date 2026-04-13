@@ -11,6 +11,7 @@ export interface Track {
     apple?: string;
     amazon?: string;
     youtube?: string;
+    youtubeId?: string;
   };
 }
 

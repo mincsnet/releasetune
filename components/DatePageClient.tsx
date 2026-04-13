@@ -251,6 +251,24 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
                 {/* 試聴リンク */}
                 <SvcGrid links={featured.links} trackTitle={featured.title} artist={featured.artist} />
 
+                {/* YouTube埋め込み */}
+                {featured.links?.youtubeId && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: "0.64rem", color: "var(--text-mute)", letterSpacing: "0.1em", marginBottom: 8 }}>
+                      MV / 公式動画
+                    </div>
+                    <div style={{ borderRadius: 10, overflow: "hidden", aspectRatio: "16/9", background: "#000" }}>
+                      <iframe
+                        src={`https://www.youtube.com/embed/${featured.links.youtubeId}?rel=0`}
+                        title={`${featured.title} - ${featured.artist}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <Link
                   href={`/track/${featured.id}`}
                   style={{

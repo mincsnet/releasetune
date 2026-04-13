@@ -106,6 +106,24 @@ export function TrackDetailClient({ track, mmdd, month, day, siblings }: Props) 
         <SvcGrid links={track.links} trackTitle={track.title} artist={track.artist} />
       </div>
 
+      {/* YouTube埋め込み */}
+      {track.links?.youtubeId && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-mute)", letterSpacing: "0.1em", marginBottom: 10 }}>
+            MV / 公式動画
+          </div>
+          <div style={{ borderRadius: 10, overflow: "hidden", aspectRatio: "16/9", background: "#000" }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${track.links.youtubeId}?rel=0`}
+              title={`${track.title} - ${track.artist}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* シェア */}
       <div style={{ paddingTop: 20, borderTop: "1px solid var(--border)", marginBottom: 32 }}>
         <div style={{ fontSize: "0.68rem", color: "var(--text-mute)", letterSpacing: "0.1em", marginBottom: 14 }}>

@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { getTodayMmdd } from "@/lib/utils";
 import styles from "./SiteHeader.module.css";
 
 export function SiteHeader() {
-  const today = getTodayMmdd();
-
   return (
     <header className={styles.header}>
-      <Link href={`/date/${today}`} className={styles.logo}>
+      <Link href="/" className={styles.logo}>
         <span className={styles.logoRelease}>Release</span>
         <span className={styles.logoTune}>Tune</span>
       </Link>

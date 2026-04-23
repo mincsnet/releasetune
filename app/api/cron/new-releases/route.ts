@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     const { error, count } = await supabase
       .from("tracks")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true })
-      .select("id", { count: "exact" });
+      .select("id");
 
     if (error) throw new Error(error.message);
 

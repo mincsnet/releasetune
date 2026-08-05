@@ -1,6 +1,0 @@
-{
-  "/page": "/",
-  "/_not-found/page": "/_not-found",
-  "/track/[id]/page": "/track/[id]",
-  "/date/[mmdd]/page": "/date/[mmdd]"
-}

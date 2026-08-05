@@ -3,7 +3,6 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { DatePageClient } from "@/components/DatePageClient";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 function getTodayJST() {
   const now = new Date(

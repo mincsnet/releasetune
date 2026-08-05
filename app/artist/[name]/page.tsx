@@ -8,6 +8,8 @@ interface Props {
   params: Promise<{ name: string }>;
 }
 
+export const revalidate = 86400;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
   const artistName = decodeURIComponent(name);

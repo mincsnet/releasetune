@@ -8,6 +8,8 @@ interface Props {
   params: Promise<{ mmdd: string }>;
 }
 
+export const revalidate = 3600;
+
 // MM-DD のバリデーション
 function isValidMmdd(mmdd: string): boolean {
   if (!/^\d{2}-\d{2}$/.test(mmdd)) return false;

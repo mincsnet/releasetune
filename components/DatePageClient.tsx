@@ -32,10 +32,15 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
   });
   const [calMonth, setCalMonth] = useState(() => parseInt(mmdd.split("-")[0]));
 
-  const featuredIdx = useMemo(
-    () => (tracks.length > 0 ? Math.floor(Math.random() * tracks.length) : 0),
-    [tracks.length]
-  );
+  const featuredIdx = useMemo(() => {
+    if (tracks.length === 0) return 0;
+    // mmddから決定的に算出（サーバー/クライアントで結果を一致させるため乱数は使わない）
+    let hash = 0;
+    for (let i = 0; i < mmdd.length; i++) {
+      hash = (hash * 31 + mmdd.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % tracks.length;
+  }, [tracks.length, mmdd]);
   const featured = tracks.length > 0 ? tracks[featuredIdx] : null;
   const others = tracks.filter((t) => t.id !== featured?.id);
 

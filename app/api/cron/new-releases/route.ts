@@ -24,6 +24,160 @@ function mmdd(dateStr: string): string {
   return dateStr.slice(5, 10); // "YYYY-MM-DD" → "MM-DD"
 }
 
+// ── Spotify 直リンク検索（add_spotify.py と同等のロジック） ──────
+
+let spotifyTokenCache: { token: string; expiresAt: number } | null = null;
+
+async function getSpotifyToken(): Promise<string | null> {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  if (spotifyTokenCache && spotifyTokenCache.expiresAt > Date.now()) {
+    return spotifyTokenCache.token;
+  }
+
+  try {
+    const resp = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization:
+          "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
+      },
+      body: "grant_type=client_credentials",
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    spotifyTokenCache = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    };
+    return spotifyTokenCache.token;
+  } catch {
+    return null;
+  }
+}
+
+function normalize(s: string): string {
+  return s.normalize("NFKC").toLowerCase().trim();
+}
+
+function artistMatch(spotifyArtists: { name: string }[], queryArtist: string): boolean {
+  const q = normalize(queryArtist);
+  return spotifyArtists.some((a) => {
+    const n = normalize(a.name ?? "");
+    return n.length > 0 && (q.includes(n) || n.includes(q));
+  });
+}
+
+interface SpotifyTrackItem {
+  name: string;
+  artists: { name: string }[];
+  external_urls?: { spotify?: string };
+}
+
+async function searchSpotify(token: string, title: string, artist: string): Promise<string | null> {
+  const queries = [
+    `track:"${title}" artist:"${artist}"`,
+    `track:${title} artist:${artist}`,
+    `${artist} ${title}`,
+  ];
+
+  for (const query of queries) {
+    try {
+      const url = new URL("https://api.spotify.com/v1/search");
+      url.searchParams.set("q", query);
+      url.searchParams.set("type", "track");
+      url.searchParams.set("market", "JP");
+      url.searchParams.set("limit", "10");
+
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const items: SpotifyTrackItem[] = data?.tracks?.items ?? [];
+      if (items.length === 0) continue;
+
+      const titleNorm = normalize(title);
+      for (const item of items) {
+        const spTitle = normalize(item.name ?? "");
+        const spUrl = item.external_urls?.spotify;
+        if (
+          spUrl &&
+          (titleNorm.includes(spTitle) || spTitle.includes(titleNorm)) &&
+          artistMatch(item.artists ?? [], artist)
+        ) {
+          return spUrl;
+        }
+      }
+      const firstUrl = items[0]?.external_urls?.spotify;
+      if (firstUrl) return firstUrl;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+// ── YouTube 動画ID検索（fetch_youtube.py と同等のロジック） ──────
+
+function isJapanese(text: string): boolean {
+  return /[぀-ヿ一-鿿]/.test(text);
+}
+
+function cleanTitle(title: string): string {
+  return title.replace(/\s*[-–]\s*(Single|EP|Album|Maxi Single|CD|DVD).*$/i, "").trim();
+}
+
+interface YoutubeSearchItem {
+  id: { videoId: string };
+  snippet: { channelTitle?: string; title?: string };
+}
+
+async function searchYoutube(
+  title: string,
+  artist: string
+): Promise<{ id: string; verified: boolean } | null> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return null;
+
+  const qTitle = cleanTitle(title);
+  const hasJa = isJapanese(title) || isJapanese(artist);
+  const query = hasJa ? `${artist} ${qTitle} 公式` : `${artist} ${qTitle} official`;
+
+  try {
+    const url = new URL("https://www.googleapis.com/youtube/v3/search");
+    url.searchParams.set("part", "snippet");
+    url.searchParams.set("q", query);
+    url.searchParams.set("type", "video");
+    url.searchParams.set("maxResults", "5");
+    url.searchParams.set("regionCode", "JP");
+    url.searchParams.set("relevanceLanguage", "ja");
+    url.searchParams.set("key", apiKey);
+
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const items: YoutubeSearchItem[] = data?.items ?? [];
+    if (items.length === 0) return null;
+
+    const artistNorm = artist.toLowerCase();
+    const officialKw = ["official", "公式", "vevo", artistNorm];
+
+    for (const item of items) {
+      const channel = (item.snippet?.channelTitle ?? "").toLowerCase();
+      const vidTitle = (item.snippet?.title ?? "").toLowerCase();
+      const isOfficial = officialKw.some((kw) => kw && (channel.includes(kw) || vidTitle.includes(kw)));
+      if (isOfficial) {
+        return { id: item.id.videoId, verified: true };
+      }
+    }
+    return { id: items[0].id.videoId, verified: false };
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   // Vercel Cron の認証チェック
   const authHeader = request.headers.get("authorization");
@@ -73,18 +227,55 @@ export async function GET(request: Request) {
     });
 
     // upsert（既存IDは更新しない = on_conflict: id → do nothing）
-    const { error, count } = await supabase
+    // ignoreDuplicates指定時、returnされるのは実際に新規挿入された行のみ
+    const { data: inserted, error } = await supabase
       .from("tracks")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true })
-      .select("id");
+      .select("id, title, artist");
 
     if (error) throw new Error(error.message);
 
+    const newRows = inserted ?? [];
+
+    // 新規追加分だけSpotify/YouTubeの直リンクを補完（既存曲のAPIクォータ消費を避ける）
+    let enriched = 0;
+    if (newRows.length > 0) {
+      const spotifyToken = await getSpotifyToken();
+
+      await Promise.all(
+        newRows.map(async (row) => {
+          const updates: Record<string, unknown> = {};
+
+          if (spotifyToken) {
+            const spotifyUrl = await searchSpotify(spotifyToken, row.title, row.artist);
+            if (spotifyUrl) updates.spotify = spotifyUrl;
+          }
+
+          const yt = await searchYoutube(row.title, row.artist);
+          if (yt) {
+            updates.youtube = `https://music.youtube.com/watch?v=${yt.id}`;
+            updates.youtube_id = yt.id;
+            updates.youtube_verified = yt.verified;
+          }
+
+          if (Object.keys(updates).length === 0) return;
+
+          const { error: updateError } = await supabase
+            .from("tracks")
+            .update(updates)
+            .eq("id", row.id);
+
+          if (!updateError) enriched++;
+        })
+      );
+    }
+
     return NextResponse.json({
-      message: "New releases fetched",
-      fetched: entries.length,
-      added:   count ?? 0,
-      sample:  rows.slice(0, 3).map((r) => `${r.artist} | ${r.title}`),
+      message:  "New releases fetched",
+      fetched:  entries.length,
+      added:    newRows.length,
+      enriched,
+      sample:   newRows.slice(0, 3).map((r) => `${r.artist} | ${r.title}`),
     });
 
   } catch (err) {

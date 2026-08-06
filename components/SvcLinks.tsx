@@ -64,6 +64,10 @@ interface SvcGridProps {
 }
 
 export function SvcGrid({ links, trackTitle, artist }: SvcGridProps) {
+  const youtubeMusicHref = links?.youtubeId
+    ? `https://music.youtube.com/watch?v=${links.youtubeId}`
+    : links?.youtube;
+
   const items = [
     links?.spotify && {
       href: links.spotify,
@@ -83,11 +87,11 @@ export function SvcGrid({ links, trackTitle, artist }: SvcGridProps) {
       icon: <AmIcon s={14} />,
       label: "Amazon Music",
     },
-    links?.youtube && {
-      href: links.youtube,
+    youtubeMusicHref && {
+      href: youtubeMusicHref,
       iconColor: "#FF0000",
       icon: <YtIcon s={14} />,
-      label: "YouTube",
+      label: "YouTube Music",
     },
   ].filter(Boolean) as SvcLinkProps[];
 
@@ -113,6 +117,10 @@ interface TrackSvcLinksProps {
 }
 
 export function TrackSvcLinks({ links, trackTitle, artist }: TrackSvcLinksProps) {
+  const youtubeMusicHref = links?.youtubeId
+    ? `https://music.youtube.com/watch?v=${links.youtubeId}`
+    : links?.youtube;
+
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       {links?.spotify && (
@@ -145,12 +153,12 @@ export function TrackSvcLinks({ links, trackTitle, artist }: TrackSvcLinksProps)
           artist={artist}
         />
       )}
-      {links?.youtube && (
+      {youtubeMusicHref && (
         <SvcLink
-          href={links.youtube}
+          href={youtubeMusicHref}
           iconColor="#FF0000"
           icon={<YtIcon />}
-          label="YouTube"
+          label="YouTube Music"
           trackTitle={trackTitle}
           artist={artist}
         />

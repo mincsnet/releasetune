@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import type { Track } from "@/lib/utils";
 
 export type { Track } from "@/lib/utils";
@@ -34,37 +35,41 @@ function rowToTrack(row: Record<string, unknown>): Track {
 
 // ── 基本クエリ ─────────────────────────────────────────────────
 
-export const getTracksByMmdd = unstable_cache(
-  async (mmdd: string): Promise<Track[]> => {
-    const { data, error } = await supabase
-      .from("tracks")
-      .select("*")
-      .eq("mmdd", mmdd)
-      .order("release_date", { ascending: false });
+export const getTracksByMmdd = cache(
+  unstable_cache(
+    async (mmdd: string): Promise<Track[]> => {
+      const { data, error } = await supabase
+        .from("tracks")
+        .select("*")
+        .eq("mmdd", mmdd)
+        .order("release_date", { ascending: false });
 
-    if (error) {
-      console.error("getTracksByMmdd error:", error);
-      return [];
-    }
-    return (data ?? []).map(rowToTrack);
-  },
-  ["tracks-by-mmdd"],
-  { revalidate: 3600 }
+      if (error) {
+        console.error("getTracksByMmdd error:", error);
+        return [];
+      }
+      return (data ?? []).map(rowToTrack);
+    },
+    ["tracks-by-mmdd"],
+    { revalidate: 3600 }
+  )
 );
 
-export const getTrackById = unstable_cache(
-  async (id: string): Promise<{ track: Track; mmdd: string } | null> => {
-    const { data, error } = await supabase
-      .from("tracks")
-      .select("*")
-      .eq("id", id)
-      .single();
+export const getTrackById = cache(
+  unstable_cache(
+    async (id: string): Promise<{ track: Track; mmdd: string } | null> => {
+      const { data, error } = await supabase
+        .from("tracks")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-    if (error || !data) return null;
-    return { track: rowToTrack(data), mmdd: String(data.mmdd) };
-  },
-  ["track-by-id"],
-  { revalidate: 86400 }
+      if (error || !data) return null;
+      return { track: rowToTrack(data), mmdd: String(data.mmdd) };
+    },
+    ["track-by-id"],
+    { revalidate: 86400 }
+  )
 );
 
 // ── アーティスト関連 ──────────────────────────────────────────
@@ -76,46 +81,50 @@ export interface ArtistSummary {
   tracks: (Track & { mmdd: string })[];
 }
 
-export const getArtistByName = unstable_cache(
-  async (name: string): Promise<ArtistSummary | null> => {
-    const { data, error } = await supabase
-      .from("tracks")
-      .select("*")
-      .ilike("artist", name)
-      .order("release_date", { ascending: false });
+export const getArtistByName = cache(
+  unstable_cache(
+    async (name: string): Promise<ArtistSummary | null> => {
+      const { data, error } = await supabase
+        .from("tracks")
+        .select("*")
+        .ilike("artist", name)
+        .order("release_date", { ascending: false });
 
-    if (error || !data || data.length === 0) return null;
+      if (error || !data || data.length === 0) return null;
 
-    const tracks = data.map((row) => ({
-      ...rowToTrack(row),
-      mmdd: String(row.mmdd),
-    }));
+      const tracks = data.map((row) => ({
+        ...rowToTrack(row),
+        mmdd: String(row.mmdd),
+      }));
 
-    const jacket = tracks.find((t) => t.jacket)?.jacket ?? "";
+      const jacket = tracks.find((t) => t.jacket)?.jacket ?? "";
 
-    return {
-      name,
-      trackCount: tracks.length,
-      jacket,
-      tracks,
-    };
-  },
-  ["artist-by-name"],
-  { revalidate: 86400 }
+      return {
+        name,
+        trackCount: tracks.length,
+        jacket,
+        tracks,
+      };
+    },
+    ["artist-by-name"],
+    { revalidate: 86400 }
+  )
 );
 
-export const getAllArtistNames = unstable_cache(
-  async (): Promise<string[]> => {
-    const { data, error } = await supabase
-      .from("tracks")
-      .select("artist");
+export const getAllArtistNames = cache(
+  unstable_cache(
+    async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("tracks")
+        .select("artist");
 
-    if (error || !data) return [];
-    const set = new Set(data.map((r) => r.artist as string));
-    return Array.from(set).sort();
-  },
-  ["all-artist-names"],
-  { revalidate: 86400 }
+      if (error || !data) return [];
+      const set = new Set(data.map((r) => r.artist as string));
+      return Array.from(set).sort();
+    },
+    ["all-artist-names"],
+    { revalidate: 86400 }
+  )
 );
 
 // ── 自由検索 ──────────────────────────────────────────────────
@@ -124,31 +133,33 @@ export interface SearchResult extends Track {
   mmdd: string;
 }
 
-export const searchTracks = unstable_cache(
-  async (query: string, limit = 50): Promise<SearchResult[]> => {
-    if (!query.trim()) return [];
+export const searchTracks = cache(
+  unstable_cache(
+    async (query: string, limit = 50): Promise<SearchResult[]> => {
+      if (!query.trim()) return [];
 
-    const q = query.trim();
+      const q = query.trim();
 
-    const { data, error } = await supabase
-      .from("tracks")
-      .select("*")
-      .or(`title.ilike.%${q}%,artist.ilike.%${q}%`)
-      .order("release_date", { ascending: false })
-      .limit(limit);
+      const { data, error } = await supabase
+        .from("tracks")
+        .select("*")
+        .or(`title.ilike.%${q}%,artist.ilike.%${q}%`)
+        .order("release_date", { ascending: false })
+        .limit(limit);
 
-    if (error) {
-      console.error("searchTracks error:", error);
-      return [];
-    }
+      if (error) {
+        console.error("searchTracks error:", error);
+        return [];
+      }
 
-    return (data ?? []).map((row) => ({
-      ...rowToTrack(row),
-      mmdd: String(row.mmdd),
-    }));
-  },
-  ["search-tracks"],
-  { revalidate: 3600 }
+      return (data ?? []).map((row) => ({
+        ...rowToTrack(row),
+        mmdd: String(row.mmdd),
+      }));
+    },
+    ["search-tracks"],
+    { revalidate: 3600 }
+  )
 );
 
 // ── デビュー日関連 ────────────────────────────────────────────

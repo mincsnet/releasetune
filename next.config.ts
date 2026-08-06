@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.youtube.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: https://*.mzstatic.com https://i.scdn.co https://img.youtube.com",
+              "img-src 'self' data: https://*.mzstatic.com https://i.scdn.co https://img.youtube.com https://www.googletagmanager.com",
               "frame-src https://www.youtube.com",
               "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com",
             ].join("; "),

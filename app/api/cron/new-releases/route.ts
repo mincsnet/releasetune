@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSpotifyToken, searchSpotify } from "@/lib/spotify";
 
 // Vercel Cron Job から呼ばれる
 // vercel.json で毎日 JST 0:00（UTC 15:00）に実行
@@ -22,101 +23,6 @@ interface ItunesEntry {
 
 function mmdd(dateStr: string): string {
   return dateStr.slice(5, 10); // "YYYY-MM-DD" → "MM-DD"
-}
-
-// ── Spotify 直リンク検索（add_spotify.py と同等のロジック） ──────
-
-let spotifyTokenCache: { token: string; expiresAt: number } | null = null;
-
-async function getSpotifyToken(): Promise<string | null> {
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  if (spotifyTokenCache && spotifyTokenCache.expiresAt > Date.now()) {
-    return spotifyTokenCache.token;
-  }
-
-  try {
-    const resp = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization:
-          "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
-      },
-      body: "grant_type=client_credentials",
-    });
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    spotifyTokenCache = {
-      token: data.access_token,
-      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
-    };
-    return spotifyTokenCache.token;
-  } catch {
-    return null;
-  }
-}
-
-function normalize(s: string): string {
-  return s.normalize("NFKC").toLowerCase().trim();
-}
-
-function artistMatch(spotifyArtists: { name: string }[], queryArtist: string): boolean {
-  const q = normalize(queryArtist);
-  return spotifyArtists.some((a) => {
-    const n = normalize(a.name ?? "");
-    return n.length > 0 && (q.includes(n) || n.includes(q));
-  });
-}
-
-interface SpotifyTrackItem {
-  name: string;
-  artists: { name: string }[];
-  external_urls?: { spotify?: string };
-}
-
-async function searchSpotify(token: string, title: string, artist: string): Promise<string | null> {
-  const queries = [
-    `track:"${title}" artist:"${artist}"`,
-    `track:${title} artist:${artist}`,
-    `${artist} ${title}`,
-  ];
-
-  for (const query of queries) {
-    try {
-      const url = new URL("https://api.spotify.com/v1/search");
-      url.searchParams.set("q", query);
-      url.searchParams.set("type", "track");
-      url.searchParams.set("market", "JP");
-      url.searchParams.set("limit", "10");
-
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      const items: SpotifyTrackItem[] = data?.tracks?.items ?? [];
-      if (items.length === 0) continue;
-
-      const titleNorm = normalize(title);
-      for (const item of items) {
-        const spTitle = normalize(item.name ?? "");
-        const spUrl = item.external_urls?.spotify;
-        if (
-          spUrl &&
-          (titleNorm.includes(spTitle) || spTitle.includes(titleNorm)) &&
-          artistMatch(item.artists ?? [], artist)
-        ) {
-          return spUrl;
-        }
-      }
-      const firstUrl = items[0]?.external_urls?.spotify;
-      if (firstUrl) return firstUrl;
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }
 
 // ── YouTube 動画ID検索（fetch_youtube.py と同等のロジック） ──────
@@ -247,8 +153,8 @@ export async function GET(request: Request) {
           const updates: Record<string, unknown> = {};
 
           if (spotifyToken) {
-            const spotifyUrl = await searchSpotify(spotifyToken, row.title, row.artist);
-            if (spotifyUrl) updates.spotify = spotifyUrl;
+            const spotifyResult = await searchSpotify(spotifyToken, row.title, row.artist);
+            if (spotifyResult.url) updates.spotify = spotifyResult.url;
           }
 
           const yt = await searchYoutube(row.title, row.artist);

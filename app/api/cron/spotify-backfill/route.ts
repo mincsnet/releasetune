@@ -6,7 +6,13 @@ import { getSpotifyToken, searchSpotify } from "@/lib/spotify";
 // Spotify Web APIはアプリ単位で1日あたり数百リクエスト程度しか使えない
 // （2026-08-17〜18に実測: 約200〜260リクエストでQUOTA_EXCEEDEDになり、
 //  Retry-Afterから逆算すると直近の初回呼び出しから約24時間のローリングウィンドウ）。
-// そのため1回の実行で処理する件数を抑え、429を検出したら即座に打ち切る。
+// そのため429を検出したら即座に打ち切る。
+//
+// 実測（2026-09-23）: 1トラックあたり平均約1.3秒（Spotify検索の実ネットワーク往復が支配的。
+// 未ヒット時は最大3クエリ試行するためさらに長くなる）。固定件数を上限にすると
+// Vercelのファンクションタイムアウト（maxDuration）に達して処理が強制打ち切りになり、
+// 実際の処理件数がクォータ上限よりずっと少なくなっていたため、件数ではなく
+// 経過時間で打ち切る方式にしている。
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -15,8 +21,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const BATCH_SIZE = 120; // 1回の実行で処理する上限（安全マージン込み）
-const SLEEP_MS = 120; // Spotify検索リクエスト間のスリープ
+const FETCH_LIMIT = 200; // Supabaseから一度に取得する候補件数の上限
+const TIME_BUDGET_MS = 45_000; // maxDuration(60s)に対して、レスポンス生成等の余裕を見て打ち切る経過時間
+const SLEEP_MS = 80; // Spotify検索リクエスト間のスリープ
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,25 +42,32 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const limitParam = Number(searchParams.get("limit"));
-  const batchSize = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, BATCH_SIZE) : BATCH_SIZE;
+  const fetchLimit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, FETCH_LIMIT) : FETCH_LIMIT;
 
   const { data: pending, error } = await supabase
     .from("tracks")
     .select("id,title,artist")
     .or("spotify.is.null,spotify.not.like.*open.spotify.com/track/*")
     .order("id", { ascending: true })
-    .limit(batchSize);
+    .limit(fetchLimit);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const startedAt = Date.now();
   let processed = 0;
   let updated = 0;
   let notFound = 0;
   let quotaExceededRetryAfter: number | null = null;
+  let timeBudgetExceeded = false;
 
   for (const track of pending ?? []) {
+    if (Date.now() - startedAt > TIME_BUDGET_MS) {
+      timeBudgetExceeded = true;
+      break;
+    }
+
     const result = await searchSpotify(token, track.title, track.artist);
 
     if (result.quotaExceededRetryAfter !== undefined) {
@@ -76,12 +90,19 @@ export async function GET(request: Request) {
     await sleep(SLEEP_MS);
   }
 
+  const message = quotaExceededRetryAfter !== null
+    ? "Stopped: Spotify quota exceeded"
+    : timeBudgetExceeded
+    ? "Stopped: time budget reached (resumes from the same query next run)"
+    : "Batch complete";
+
   return NextResponse.json({
-    message: quotaExceededRetryAfter !== null ? "Stopped: Spotify quota exceeded" : "Batch complete",
+    message,
     fetched: (pending ?? []).length,
     processed,
     updated,
     notFound,
+    elapsedMs: Date.now() - startedAt,
     quotaExceededRetryAfterSeconds: quotaExceededRetryAfter,
   });
 }

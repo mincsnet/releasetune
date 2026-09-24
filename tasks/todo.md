@@ -1,13 +1,13 @@
 # ReleaseTune 開発タスク
 
-最終更新: 2026-09-23
+最終更新: 2026-09-24
 
 このファイルはプロジェクトの開発状況・残タスクの正本です。新しいチャットセッションでもこのファイルを読めば経緯と優先順位が分かるようにしています。作業を進めたら随時更新してください。
 
 ## 完了済み（2026-08-05〜08 セッション）
 
 - [x] `.cache`（Spotifyアクセストークン）のgit漏洩を解消。`.gitignore`のバグ（`.DS_Storenode_modules/`が改行なしで結合）を修正。`.next`等のビルド成果物の追跡解除、`git filter-repo`で履歴から完全削除しforce push
-- [x] Next.js 15.3.6→15.5.22に更新。npm脆弱性 36件→5件（残りはNext.js 16メジャー更新が必要、保留中）
+- [x] Next.js 15.3.6→15.5.22に更新。npm脆弱性 36件→5件（その後2026-09-24に0件まで解消、下記参照）
 - [x] Supabaseクエリを`unstable_cache`でキャッシュ化、`/date/[mmdd]`・`/track/[id]`・`/artist/[name]`をISR化（Vercel Fast Origin Transfer / Supabase Egress超過対策）
 - [x] `React.cache()`でリクエスト内の重複フェッチを解消（`generateMetadata`とページ本体が同じデータを2回ずつ取得していた）
 - [x] `Math.random()`起因のHydrationエラー修正（DatePageClientの注目曲選出をmmddベースの決定的な値に変更）
@@ -16,6 +16,7 @@
 - [x] 新着cron（`app/api/cron/new-releases/route.ts`）にSpotify/YouTube直リンク自動取得を追加。新規追加分のみ対象（APIクォータ節約）。本番で動作確認済み（劇団四季「アラジン」で直リンク取得を確認）
 - [x] `SvcGrid`/`TrackSvcLinks`の「YouTube」ボタンを「YouTube Music」に変更。`youtubeId`があれば`music.youtube.com`直リンクを優先（既存の検証済みデータにもバックフィルなしで即座に効く）
 - [x] Vercel環境変数に`SPOTIFY_CLIENT_ID`・`SPOTIFY_CLIENT_SECRET`・`YOUTUBE_API_KEY`を追加（Production and Preview）
+- [x] （2026-09-24）Dependabotアラート10件（Critical 4 / High 4 / Moderate 2）を解消し`npm audit`0件に。Next.js 15.5.22→15.5.26（Image Optimization APIのRCE等）、sharp 0.34.5→0.35.4（libvips/libheif）、postcssは`next`が8.4.31に固定しているため`package.json`の`overrides`で`^8.5.23`に揃えた。Next.jsを更新する際は、この`overrides`がまだ必要か（next側がpostcssを更新したか）確認すること
 
 ## 残タスク（優先順位順）
 

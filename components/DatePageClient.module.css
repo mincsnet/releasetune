@@ -593,4 +593,12 @@
   .card {
     --jacket-size: 88px;
   }
+
+  /* 極端に長いアーティスト名で同じ行のカードまで間延びしないように */
+  .cardArtist {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
 }

@@ -1,0 +1,221 @@
+.page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+/* ── 検索フォーム ───────────────────────────────────── */
+
+.form {
+  margin-bottom: 28px;
+}
+
+.field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--surface1);
+  border: 1px solid #c8a84b44;
+  border-radius: 10px;
+  padding: 4px 4px 4px 16px;
+}
+
+.fieldIcon {
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-pri);
+  font-size: 0.95rem;
+  font-family: inherit;
+  padding: 8px 0;
+}
+
+.submit {
+  background: var(--surface2);
+  border: none;
+  border-radius: 7px;
+  color: var(--text-mute);
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: default;
+  font-family: inherit;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.submitActive {
+  background: #c8a84b;
+  color: #000;
+  cursor: pointer;
+}
+
+/* ── 結果 ───────────────────────────────────────────── */
+
+.summary {
+  font-size: 0.78rem;
+  color: var(--text-mute);
+  margin-bottom: 16px;
+}
+
+.queryText {
+  color: var(--gold);
+}
+
+.resultCount {
+  margin-left: 6px;
+  color: var(--text-sec);
+}
+
+.limitNote {
+  margin-left: 6px;
+  color: var(--text-mute);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 0件・初期状態 */
+
+.placeholder {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-mute);
+}
+
+.noneIcon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.noneTitle {
+  font-size: 0.86rem;
+  margin-bottom: 8px;
+}
+
+.introIcon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+
+.introTitle {
+  font-size: 0.88rem;
+  color: var(--text-sec);
+  margin-bottom: 8px;
+}
+
+.placeholderHint {
+  font-size: 0.74rem;
+}
+
+/* ── 検索結果カード ─────────────────────────────────── */
+
+.card {
+  --jacket-size: 60px;
+  background: var(--surface1);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: var(--jacket-size) 1fr;
+  gap: 12px;
+  animation: global(fadeUp) 0.3s ease both;
+  transition: background 0.15s;
+}
+
+.card:hover {
+  background: var(--surface2);
+}
+
+.cardBody {
+  min-width: 0;
+}
+
+.plainLink {
+  text-decoration: none;
+}
+
+.cardTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-pri);
+  line-height: 1.3;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardArtist {
+  font-size: 0.8rem;
+  color: var(--text-sec);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.cardDate {
+  font-size: 0.72rem;
+  color: var(--text-mute);
+}
+
+.yearsBadge {
+  font-size: 0.68rem;
+  color: var(--gold);
+  background: #c8a84b22;
+  border: 1px solid #c8a84b44;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+.cardDateLink {
+  font-size: 0.68rem;
+  color: var(--text-mute);
+}
+
+/* ── PC（960px以上）: ここより上はスマホ・タブレット共通 ── */
+
+@media (min-width: 960px) {
+  .page {
+    max-width: calc(var(--pc-content-width) + 80px);
+    padding: 40px 40px 60px;
+  }
+
+  .form {
+    max-width: 720px;
+    margin: 0 auto 36px;
+  }
+
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+
+  .card {
+    --jacket-size: 80px;
+  }
+
+  /* 極端に長いアーティスト名で同じ行のカードまで間延びしないように */
+  .cardArtist {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}

@@ -12,6 +12,14 @@
   justify-content: space-between;
 }
 
+/* PCではロゴと検索ボタンを本文の左右端に揃える（背景・下線は全幅のまま） */
+@media (min-width: 960px) {
+  .header {
+    padding-left: max(40px, calc((100% - var(--pc-content-width)) / 2));
+    padding-right: max(40px, calc((100% - var(--pc-content-width)) / 2));
+  }
+}
+
 .logo {
   display: flex;
   align-items: baseline;

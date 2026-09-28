@@ -415,11 +415,12 @@
 }
 
 .card {
+  --jacket-size: 68px;
   background: var(--surface1);
   border-radius: 8px;
   padding: 14px;
   display: grid;
-  grid-template-columns: 68px 1fr;
+  grid-template-columns: var(--jacket-size) 1fr;
   gap: 14px;
   /* fadeUpはglobals.cssで定義。global()で囲まないとCSS Modulesがローカル名に書き換えてしまう */
   animation: global(fadeUp) 0.35s ease both;
@@ -503,10 +504,9 @@
 /* ── PC（960px以上）: ここより上はスマホ・タブレット共通 ── */
 
 @media (min-width: 960px) {
-  /* 1200px = カード内のストリーミングボタン4つが1行に収まる幅 */
   .debuts,
   .content {
-    max-width: 1200px;
+    max-width: calc(var(--pc-content-width) + 80px);
     padding-left: 40px;
     padding-right: 40px;
   }
@@ -521,7 +521,7 @@
   /* 下線を本文の幅に揃えるため、paddingではなく幅で余白を取る */
   .nav {
     width: calc(100% - 80px);
-    max-width: 1120px;
+    max-width: var(--pc-content-width);
     padding-left: 0;
     padding-right: 0;
   }
@@ -588,5 +588,9 @@
 
   .yearHeader {
     grid-column: 1 / -1;
+  }
+
+  .card {
+    --jacket-size: 88px;
   }
 }

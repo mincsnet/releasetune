@@ -12,6 +12,8 @@ interface JacketProps {
 
 export function Jacket({ jacket, title, size = 68, fullWidth = false }: JacketProps) {
   const [err, setErr] = useState(false);
+  // 親のCSSで --jacket-size を指定すると size より優先される（画面幅ごとの切り替え用）
+  const box = `var(--jacket-size, ${size}px)`;
 
   const containerStyle = fullWidth
     ? {
@@ -23,8 +25,8 @@ export function Jacket({ jacket, title, size = 68, fullWidth = false }: JacketPr
         background: "linear-gradient(135deg, #c8a84b33 0%, #1e1e1e 100%)",
       }
     : {
-        width: size,
-        height: size,
+        width: box,
+        height: box,
         flexShrink: 0,
         borderRadius: 4,
         overflow: "hidden",
@@ -39,7 +41,7 @@ export function Jacket({ jacket, title, size = 68, fullWidth = false }: JacketPr
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: fullWidth ? "4rem" : size * 0.3,
+          fontSize: fullWidth ? "4rem" : `calc(${box} * 0.3)`,
           color: "#c8a84bcc",
         }}
       >

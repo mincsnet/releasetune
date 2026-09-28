@@ -18,6 +18,27 @@
 - [x] Vercel環境変数に`SPOTIFY_CLIENT_ID`・`SPOTIFY_CLIENT_SECRET`・`YOUTUBE_API_KEY`を追加（Production and Preview）
 - [x] （2026-09-24）Dependabotアラート10件（Critical 4 / High 4 / Moderate 2）を解消し`npm audit`0件に。Next.js 15.5.22→15.5.26（Image Optimization APIのRCE等）、sharp 0.34.5→0.35.4（libvips/libheif）、postcssは`next`が8.4.31に固定しているため`package.json`の`overrides`で`^8.5.23`に揃えた。Next.jsを更新する際は、この`overrides`がまだ必要か（next側がpostcssを更新したか）確認すること
 
+## 進行中: トップページ（DatePageClient）PC版レイアウト（2026-09-28〜）
+
+方針: スマホ版の見た目は一切変えず、PC（幅960px以上）だけ専用レイアウトにする。`/`と`/date/[mmdd]`は同じ`DatePageClient`を使うため両方に効く。
+
+- [x] 土台: `DatePageClient`のインラインstyleを`DatePageClient.module.css`へ移行（動的な値だけインラインに残す）。JSのhover state（useState）はCSSの`:hover`に置換
+- [x] スマホ版の回帰確認: 移行前後で全要素の計算済みスタイル・位置をダンプして差分ゼロを確認
+- [x] PC案（960px以上）: コンテナを600px→1200pxに拡張
+  - 注目曲: ジャケット左・情報右の2カラムのヒーロー表示（MV埋め込みは右カラム下部、ジャケットはsticky）
+  - 他の楽曲: 2列グリッド（年見出しは全幅）
+  - デビュー記念日バナー: 2列
+  - カレンダー: PCでは幅を380pxに制限（全幅だとセルが巨大化するため）
+- [x] PC/タブレット/スマホ幅でブラウザ確認、`tsc`・`next build`通過
+- [x] ユーザーレビュー → コミット（2026-09-28、方向性OK）
+
+### レビュー（2026-09-28）
+
+- **回帰確認の方法**: 375px/800px幅で`/`・`/`（カレンダー展開）・`/date/05-08`（デビュー記念日あり）・`/date/08-26`（注目曲にMV埋め込みあり）の全要素の計算済みスタイルと座標を変更前に保存し、変更後と比較。差分は注目曲の右カラム用に追加したラッパーdiv 1個のみ
+- **ハマりどころ**: CSS Modulesは`@keyframes`名もローカル化するため、`animation: fadeUp`と書くとglobals.cssの`fadeUp`を参照できずアニメーションが消える。`animation: global(fadeUp) ...`と書く必要がある
+- **1200pxにした理由**: 1120pxだとカード内のストリーミングボタン4つが収まらず「YouTube Music」だけ2行目に落ちた。960〜1200px未満の幅では2行に折り返すが許容範囲と判断
+- **次の候補**: (1) `SiteHeader`はビューポート全幅のままなので、PCではロゴが本文の左端とずれる（ヘッダーは全ページ共通のため今回は対象外）(2) PCのカードのジャケットは68pxのまま（`Jacket`の`size`がインラインstyleのためCSSでは変えられない）(3) アーティスト・楽曲詳細・検索ページは600px 1カラムのまま
+
 ## 残タスク（優先順位順）
 
 ### 🔴 最優先

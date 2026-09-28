@@ -1,0 +1,592 @@
+/* ── 日付ナビゲーション ─────────────────────────────── */
+
+.nav {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.navCalOpen {
+  border-bottom: none;
+}
+
+.navRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.navArrow {
+  font-size: 0.6rem;
+  opacity: 0.5;
+}
+
+.navBtn {
+  background: var(--surface1);
+  border: 1px solid var(--border);
+  color: var(--text-sec);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s;
+  font-weight: 400;
+}
+
+.navBtn:hover {
+  background: var(--surface2);
+}
+
+.navBtnAccent {
+  border-color: #c8a84b66;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.dateToggle {
+  background: var(--surface1);
+  border: 1px solid #c8a84b44;
+  border-radius: 6px;
+  padding: 5px 16px;
+  text-align: center;
+  min-width: 110px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dateToggleEyebrow {
+  font-size: 0.58rem;
+  color: var(--text-mute);
+  letter-spacing: 0.14em;
+  margin-bottom: 2px;
+}
+
+.dateToggleDate {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-pri);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.dateToggleHint {
+  font-size: 0.58rem;
+  color: var(--text-mute);
+}
+
+.backToday {
+  text-align: center;
+  margin-top: 8px;
+  padding-bottom: 12px;
+}
+
+.backTodayCalOpen {
+  padding-bottom: 0;
+}
+
+/* ── カレンダー ─────────────────────────────────────── */
+
+.calendar {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0 14px;
+}
+
+.calHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calMonthBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.calMonthLabel {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--text-pri);
+  font-weight: 700;
+}
+
+.calDows {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.calDow {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-mute);
+  padding: 2px 0;
+}
+
+.calDowSun {
+  color: #c84b4b88;
+}
+
+.calDowSat {
+  color: #4b6ac888;
+}
+
+.calDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calDay {
+  background: transparent;
+  color: var(--text-sec);
+  border: 1px solid transparent;
+  border-radius: 50%;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  font-size: 0.8rem;
+  font-weight: 400;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 優先度は 選択中 > 今日 > 土日 の順（後に書いたものが勝つ） */
+.calDaySun {
+  color: #c84b4b99;
+}
+
+.calDaySat {
+  color: #4b6ac899;
+}
+
+.calDayToday {
+  color: var(--gold);
+  border-color: #c8a84b44;
+  font-weight: 700;
+}
+
+.calDaySelected {
+  background: #c8a84b;
+  color: #000;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+/* ── デビュー記念日バナー ───────────────────────────── */
+
+.debuts {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.debutLink {
+  text-decoration: none;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.debut {
+  background: #c8a84b18;
+  border: 1px solid #c8a84b44;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.debutIcon {
+  font-size: 1rem;
+}
+
+.debutText {
+  min-width: 0;
+}
+
+.debutArtist {
+  font-size: 0.8rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.debutLabel {
+  font-size: 0.78rem;
+  color: var(--text-sec);
+}
+
+.debutTrack {
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  margin-left: 6px;
+}
+
+.debutYears {
+  font-size: 0.72rem;
+  color: var(--text-mute);
+  margin-left: 4px;
+}
+
+.debutChevron {
+  margin-left: auto;
+  color: var(--text-mute);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+/* ── コンテンツ ─────────────────────────────────────── */
+
+.content {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+}
+
+.plainLink {
+  text-decoration: none;
+}
+
+/* 注目曲 */
+
+.featured {
+  padding: 28px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.featuredJacket {
+  display: block;
+  width: 66%;
+  margin: 0 auto 20px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.featuredHead {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.featuredTitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 5vw, 1.8rem);
+  font-weight: 700;
+  color: var(--text-pri);
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+
+.featuredArtist {
+  font-size: 0.95rem;
+  color: var(--text-sec);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.featuredMeta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.featuredDate {
+  font-size: 0.76rem;
+  color: var(--text-mute);
+}
+
+.yearsBadge {
+  font-size: 0.72rem;
+  color: var(--gold);
+  background: #c8a84b22;
+  border: 1px solid #c8a84b44;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+.featuredNote {
+  font-size: 0.84rem;
+  color: var(--text-pri);
+  line-height: 1.8;
+  opacity: 0.88;
+  margin-bottom: 20px;
+}
+
+.mv {
+  margin-top: 16px;
+}
+
+.mvLabel {
+  font-size: 0.64rem;
+  color: var(--text-mute);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.mvFrame {
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.mvIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.detailLink {
+  display: inline-block;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 0.74rem;
+  text-decoration: none;
+}
+
+/* 他の楽曲 */
+
+.others {
+  padding-top: 24px;
+}
+
+.othersHeading {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-pri);
+  margin-bottom: 4px;
+}
+
+.othersCount {
+  font-size: 0.68rem;
+  color: var(--text-mute);
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+}
+
+.othersList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yearHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 8px;
+}
+
+.yearLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-mute);
+  letter-spacing: 0.1em;
+}
+
+.yearRule {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.yearAgo {
+  font-size: 0.66rem;
+  color: var(--gold);
+}
+
+.card {
+  background: var(--surface1);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 14px;
+  /* fadeUpはglobals.cssで定義。global()で囲まないとCSS Modulesがローカル名に書き換えてしまう */
+  animation: global(fadeUp) 0.35s ease both;
+  transition: background 0.15s;
+}
+
+.card:hover {
+  background: var(--surface2);
+}
+
+.cardBody {
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-pri);
+  line-height: 1.3;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardArtist {
+  font-size: 0.8rem;
+  color: var(--text-sec);
+  margin-bottom: 8px;
+  font-weight: 500;
+  display: block;
+  text-decoration: none;
+}
+
+.cardNote {
+  font-size: 0.74rem;
+  color: var(--text-pri);
+  line-height: 1.7;
+  margin-bottom: 10px;
+  opacity: 0.85;
+}
+
+/* データなし */
+
+.empty {
+  text-align: center;
+  padding: 72px 20px;
+}
+
+.emptyIcon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  color: var(--text-mute);
+}
+
+.emptyTitle {
+  font-size: 0.86rem;
+  color: var(--text-sec);
+  margin-bottom: 6px;
+}
+
+.emptyHint {
+  font-size: 0.73rem;
+  color: var(--text-mute);
+}
+
+.about {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  line-height: 1.9;
+}
+
+.aboutBrand {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* ── PC（960px以上）: ここより上はスマホ・タブレット共通 ── */
+
+@media (min-width: 960px) {
+  /* 1200px = カード内のストリーミングボタン4つが1行に収まる幅 */
+  .debuts,
+  .content {
+    max-width: 1200px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .debuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    padding-top: 16px;
+  }
+
+  /* 下線を本文の幅に揃えるため、paddingではなく幅で余白を取る */
+  .nav {
+    width: calc(100% - 80px);
+    max-width: 1120px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* 全幅だと日付セルが巨大化するため中央380pxに収める（下線は全幅のまま） */
+  .calendar {
+    padding-left: calc(50% - 190px);
+    padding-right: calc(50% - 190px);
+  }
+
+  .featured {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 56px;
+    align-items: center;
+    padding: 48px 0;
+  }
+
+  /* MV埋め込みで右カラムが長くなってもジャケットが画面に残るように */
+  .featuredJacket {
+    width: 100%;
+    margin: 0;
+    align-self: start;
+    position: sticky;
+    top: 80px;
+  }
+
+  .featuredHead {
+    text-align: left;
+    margin-bottom: 24px;
+  }
+
+  .featuredTitle {
+    font-size: clamp(1.8rem, 2.6vw, 2.4rem);
+    margin-bottom: 12px;
+  }
+
+  .featuredArtist {
+    font-size: 1.05rem;
+  }
+
+  .featuredMeta {
+    justify-content: flex-start;
+  }
+
+  .featuredNote {
+    font-size: 0.9rem;
+  }
+
+  .others {
+    padding-top: 40px;
+  }
+
+  .othersList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+
+  /* 年見出しとカードをグリッドの直接の子にするため、ラッパーを消す */
+  .othersItem {
+    display: contents;
+  }
+
+  .yearHeader {
+    grid-column: 1 / -1;
+  }
+}

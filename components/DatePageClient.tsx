@@ -9,6 +9,7 @@ import { yearsAgo, formatDateJa, parseMmdd } from "@/lib/utils";
 import { Jacket } from "@/components/Jacket";
 import { SvcGrid, TrackSvcLinks } from "@/components/SvcLinks";
 import { gaEvent } from "@/components/GoogleAnalytics";
+import styles from "./DatePageClient.module.css";
 
 interface DebutWithTrack extends DebutInfo {
   track?: Track;
@@ -67,42 +68,21 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
   return (
     <>
       {/* ナビゲーション */}
-      <div
-        style={{
-          maxWidth: 600,
-          margin: "0 auto",
-          padding: "12px 20px 0",
-          borderBottom: calOpen ? "none" : "1px solid var(--border)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      <div className={`${styles.nav} ${calOpen ? styles.navCalOpen : ""}`}>
+        <div className={styles.navRow}>
           {/* 前日ボタン */}
           <NavBtn onClick={() => shiftDate(-1)}>
-            <span style={{ fontSize: "0.6rem", opacity: 0.5 }}>◀</span>
+            <span className={styles.navArrow}>◀</span>
             {" "}{prevDate.month}月{prevDate.day}日
           </NavBtn>
 
           {/* 当日枠：タップでカレンダー開閉 */}
-          <button
-            onClick={() => setCalOpen((v) => !v)}
-            style={{
-              background: "var(--surface1)",
-              border: "1px solid #c8a84b44",
-              borderRadius: 6,
-              padding: "5px 16px",
-              textAlign: "center",
-              minWidth: 110,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <div style={{ fontSize: "0.58rem", color: "var(--text-mute)", letterSpacing: "0.14em", marginBottom: 2 }}>
-              ON THIS DAY
-            </div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-pri)", lineHeight: 1, marginBottom: 2 }}>
+          <button onClick={() => setCalOpen((v) => !v)} className={styles.dateToggle}>
+            <div className={styles.dateToggleEyebrow}>ON THIS DAY</div>
+            <div className={styles.dateToggleDate}>
               {month}月{day}日
             </div>
-            <div style={{ fontSize: "0.58rem", color: "var(--text-mute)" }}>
+            <div className={styles.dateToggleHint}>
               {calOpen ? "▲ 閉じる" : "タップで日付選択"}
             </div>
           </button>
@@ -110,13 +90,13 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
           {/* 翌日ボタン */}
           <NavBtn onClick={() => shiftDate(1)}>
             {nextDate.month}月{nextDate.day}日{" "}
-            <span style={{ fontSize: "0.6rem", opacity: 0.5 }}>▶</span>
+            <span className={styles.navArrow}>▶</span>
           </NavBtn>
         </div>
 
         {/* 今日に戻るボタン */}
         {!isToday && (
-          <div style={{ textAlign: "center", marginTop: 8, paddingBottom: calOpen ? 0 : 12 }}>
+          <div className={`${styles.backToday} ${calOpen ? styles.backTodayCalOpen : ""}`}>
             <NavBtn onClick={() => router.push("/")} accent>今日に戻る</NavBtn>
           </div>
         )}
@@ -141,42 +121,26 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
 
       {/* デビュー記念日バナー */}
       {debuts.length > 0 && (
-        <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px" }}>
+        <div className={styles.debuts}>
           {debuts.map((d) => (
             <Link
               key={d.artist}
               href={`/artist/${encodeURIComponent(d.artist)}`}
-              style={{ textDecoration: "none", display: "block", marginBottom: 8 }}
+              className={styles.debutLink}
             >
-              <div
-                style={{
-                  background: "#c8a84b18",
-                  border: "1px solid #c8a84b44",
-                  borderRadius: 8,
-                  padding: "10px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <span style={{ fontSize: "1rem" }}>🎂</span>
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontSize: "0.8rem", color: "var(--gold)", fontWeight: 700 }}>
-                    {d.artist}
-                  </span>
-                  <span style={{ fontSize: "0.78rem", color: "var(--text-sec)" }}>
-                    {" "}のデビュー記念日
-                  </span>
+              <div className={styles.debut}>
+                <span className={styles.debutIcon}>🎂</span>
+                <div className={styles.debutText}>
+                  <span className={styles.debutArtist}>{d.artist}</span>
+                  <span className={styles.debutLabel}>{" "}のデビュー記念日</span>
                   {d.debutTrack && (
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-mute)", marginLeft: 6 }}>
-                      「{d.debutTrack}」
-                    </span>
+                    <span className={styles.debutTrack}>「{d.debutTrack}」</span>
                   )}
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-mute)", marginLeft: 4 }}>
+                  <span className={styles.debutYears}>
                     {new Date().getFullYear() - parseInt(d.debutDate.slice(0, 4))}周年
                   </span>
                 </div>
-                <span style={{ marginLeft: "auto", color: "var(--text-mute)", fontSize: "0.8rem", flexShrink: 0 }}>›</span>
+                <span className={styles.debutChevron}>›</span>
               </div>
             </Link>
           ))}
@@ -184,139 +148,79 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
       )}
 
       {/* コンテンツ */}
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px 60px" }}>
+      <div className={styles.content}>
         {tracks.length > 0 ? (
           <>
             {/* フィーチャード楽曲 */}
             {featured && (
-              <div style={{ padding: "28px 0", borderBottom: "1px solid var(--border)" }}>
-                {/* ジャケット：約2/3幅・中央寄せ */}
+              <div className={styles.featured}>
                 <Link
                   href={`/track/${featured.id}`}
-                  style={{
-                    display: "block",
-                    width: "66%",
-                    margin: "0 auto 20px",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                  }}
+                  className={styles.featuredJacket}
                   onClick={() => gaEvent("view_track", { track_id: featured.id, track_title: featured.title, artist: featured.artist })}
                 >
                   <Jacket jacket={featured.jacket} title={featured.title} fullWidth />
                 </Link>
 
-                {/* タイトル・アーティスト・リリース日：中央寄せ */}
-                <div style={{ textAlign: "center", marginBottom: 20 }}>
-                  <Link href={`/track/${featured.id}`} style={{ textDecoration: "none" }}>
-                    <h2
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "clamp(1.2rem, 5vw, 1.8rem)",
-                        fontWeight: 700,
-                        color: "var(--text-pri)",
-                        lineHeight: 1.25,
-                        marginBottom: 10,
-                      }}
-                    >
-                      {featured.title}
-                    </h2>
+                <div>
+                  <div className={styles.featuredHead}>
+                    <Link href={`/track/${featured.id}`} className={styles.plainLink}>
+                      <h2 className={styles.featuredTitle}>{featured.title}</h2>
+                    </Link>
+                    <div className={styles.featuredArtist}>{featured.artist}</div>
+                    <div className={styles.featuredMeta}>
+                      <span className={styles.featuredDate}>{formatDateJa(featured.releaseDate)}</span>
+                      {yearsAgo(featured.releaseDate) > 0 && (
+                        <span className={styles.yearsBadge}>{yearsAgo(featured.releaseDate)}年前</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {featured.note && <p className={styles.featuredNote}>{featured.note}</p>}
+
+                  <SvcGrid links={featured.links} trackTitle={featured.title} artist={featured.artist} />
+
+                  {featured.links?.youtubeId && featured.links?.youtubeVerified && (
+                    <div className={styles.mv}>
+                      <div className={styles.mvLabel}>MV / 公式動画</div>
+                      <div className={styles.mvFrame}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${featured.links.youtubeId}?rel=0`}
+                          title={`${featured.title} - ${featured.artist}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className={styles.mvIframe}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <Link href={`/track/${featured.id}`} className={styles.detailLink}>
+                    詳細を見る →
                   </Link>
-                  <div style={{ fontSize: "0.95rem", color: "var(--text-sec)", fontWeight: 600, marginBottom: 8 }}>
-                    {featured.artist}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "0.76rem", color: "var(--text-mute)" }}>
-                      {formatDateJa(featured.releaseDate)}
-                    </span>
-                    {yearsAgo(featured.releaseDate) > 0 && (
-                      <span
-                        style={{
-                          fontSize: "0.72rem",
-                          color: "var(--gold)",
-                          background: "#c8a84b22",
-                          border: "1px solid #c8a84b44",
-                          padding: "1px 8px",
-                          borderRadius: 3,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {yearsAgo(featured.releaseDate)}年前
-                      </span>
-                    )}
-                  </div>
                 </div>
-
-                {/* コメント */}
-                {featured.note && (
-                  <p style={{ fontSize: "0.84rem", color: "var(--text-pri)", lineHeight: 1.8, opacity: 0.88, marginBottom: 20 }}>
-                    {featured.note}
-                  </p>
-                )}
-
-                {/* 試聴リンク */}
-                <SvcGrid links={featured.links} trackTitle={featured.title} artist={featured.artist} />
-
-                {/* YouTube埋め込み */}
-                {featured.links?.youtubeId && featured.links?.youtubeVerified && (
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: "0.64rem", color: "var(--text-mute)", letterSpacing: "0.1em", marginBottom: 8 }}>
-                      MV / 公式動画
-                    </div>
-                    <div style={{ borderRadius: 10, overflow: "hidden", aspectRatio: "16/9", background: "#000" }}>
-                      <iframe
-                        src={`https://www.youtube.com/embed/${featured.links.youtubeId}?rel=0`}
-                        title={`${featured.title} - ${featured.artist}`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <Link
-                  href={`/track/${featured.id}`}
-                  style={{
-                    display: "inline-block",
-                    marginTop: 14,
-                    border: "1px solid var(--border)",
-                    color: "var(--text-mute)",
-                    borderRadius: 4,
-                    padding: "6px 14px",
-                    fontSize: "0.74rem",
-                    textDecoration: "none",
-                  }}
-                >
-                  詳細を見る →
-                </Link>
               </div>
             )}
 
-            {/* その他の楽曲一覧（旧来の横並びレイアウト） */}
+            {/* その他の楽曲一覧 */}
             {others.length > 0 && (
-              <div style={{ paddingTop: 24 }}>
-                <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--text-pri)", marginBottom: 4 }}>
+              <div className={styles.others}>
+                <div className={styles.othersHeading}>
                   {month}月{day}日にリリースされた他の楽曲
                 </div>
-                <div style={{ fontSize: "0.68rem", color: "var(--text-mute)", marginBottom: 16, letterSpacing: "0.04em" }}>
-                  {others.length} TRACKS
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div className={styles.othersCount}>{others.length} TRACKS</div>
+                <div className={styles.othersList}>
                   {others.map((track, i, arr) => {
                     const year = track.releaseDate.split("-")[0];
                     const prevYear = arr[i - 1]?.releaseDate.split("-")[0];
                     const currentYear = new Date().getFullYear();
                     return (
-                      <div key={track.id}>
+                      <div key={track.id} className={styles.othersItem}>
                         {year !== prevYear && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 0 8px" }}>
-                            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-mute)", letterSpacing: "0.1em" }}>
-                              {year}
-                            </span>
-                            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                            <span style={{ fontSize: "0.66rem", color: "var(--gold)" }}>
-                              {currentYear - parseInt(year)}年前
-                            </span>
+                          <div className={styles.yearHeader}>
+                            <span className={styles.yearLabel}>{year}</span>
+                            <div className={styles.yearRule} />
+                            <span className={styles.yearAgo}>{currentYear - parseInt(year)}年前</span>
                           </div>
                         )}
                         <TrackCard track={track} index={i} />
@@ -328,19 +232,15 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
             )}
           </>
         ) : (
-          <div style={{ textAlign: "center", padding: "72px 20px" }}>
-            <div style={{ fontSize: "2rem", marginBottom: 12, color: "var(--text-mute)" }}>♪</div>
-            <div style={{ fontSize: "0.86rem", color: "var(--text-sec)", marginBottom: 6 }}>
-              この日のデータはまだありません
-            </div>
-            <div style={{ fontSize: "0.73rem", color: "var(--text-mute)" }}>
-              前日・翌日ボタンで他の日付をご覧ください
-            </div>
+          <div className={styles.empty}>
+            <div className={styles.emptyIcon}>♪</div>
+            <div className={styles.emptyTitle}>この日のデータはまだありません</div>
+            <div className={styles.emptyHint}>前日・翌日ボタンで他の日付をご覧ください</div>
           </div>
         )}
 
-        <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid var(--border)", fontSize: "0.7rem", color: "var(--text-mute)", lineHeight: 1.9 }}>
-          <span style={{ color: "var(--gold)", fontWeight: 700 }}>Release Tune</span>
+        <div className={styles.about}>
+          <span className={styles.aboutBrand}>Release Tune</span>
           　その日にリリースされた楽曲を年代を超えてご紹介します。
         </div>
       </div>
@@ -351,59 +251,23 @@ export function DatePageClient({ mmdd, tracks, today, debuts = [] }: Props) {
 // ── トラックカード（横並びレイアウト） ────────────────────────────
 
 function TrackCard({ track, index }: { track: Track; index: number }) {
-  const [hov, setHov] = useState(false);
-
   return (
-    <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: hov ? "var(--surface2)" : "var(--surface1)",
-        borderRadius: 8,
-        padding: 14,
-        display: "grid",
-        gridTemplateColumns: "68px 1fr",
-        gap: 14,
-        animation: `fadeUp 0.35s ease both`,
-        animationDelay: `${index * 70}ms`,
-        transition: "background 0.15s",
-      }}
-    >
+    <div className={styles.card} style={{ animationDelay: `${index * 70}ms` }}>
       <Link href={`/track/${track.id}`}>
         <Jacket jacket={track.jacket} title={track.title} size={68} />
       </Link>
-      <div style={{ minWidth: 0 }}>
+      <div className={styles.cardBody}>
         <Link
           href={`/track/${track.id}`}
-          style={{ textDecoration: "none" }}
+          className={styles.plainLink}
           onClick={() => gaEvent("view_track", { track_id: track.id, track_title: track.title, artist: track.artist })}
         >
-          <div
-            style={{
-              fontSize: "0.95rem",
-              fontWeight: 700,
-              color: "var(--text-pri)",
-              lineHeight: 1.3,
-              marginBottom: 2,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {track.title}
-          </div>
+          <div className={styles.cardTitle}>{track.title}</div>
         </Link>
-        <Link
-          href={`/artist/${encodeURIComponent(track.artist)}`}
-          style={{ fontSize: "0.8rem", color: "var(--text-sec)", marginBottom: 8, fontWeight: 500, display: "block", textDecoration: "none" }}
-        >
+        <Link href={`/artist/${encodeURIComponent(track.artist)}`} className={styles.cardArtist}>
           {track.artist}
         </Link>
-        {track.note && (
-          <div style={{ fontSize: "0.74rem", color: "var(--text-pri)", lineHeight: 1.7, marginBottom: 10, opacity: 0.85 }}>
-            {track.note}
-          </div>
-        )}
+        {track.note && <div className={styles.cardNote}>{track.note}</div>}
         <TrackSvcLinks links={track.links} trackTitle={track.title} artist={track.artist} />
       </div>
     </div>
@@ -421,27 +285,8 @@ function NavBtn({
   children: React.ReactNode;
   accent?: boolean;
 }) {
-  const [hov, setHov] = useState(false);
-
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: hov ? "var(--surface2)" : "var(--surface1)",
-        border: `1px solid ${accent ? "#c8a84b66" : "var(--border)"}`,
-        color: accent ? "var(--gold)" : "var(--text-sec)",
-        borderRadius: 4,
-        padding: "6px 14px",
-        fontSize: "0.76rem",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        fontFamily: "inherit",
-        transition: "background 0.15s",
-        fontWeight: accent ? 600 : 400,
-      }}
-    >
+    <button onClick={onClick} className={`${styles.navBtn} ${accent ? styles.navBtnAccent : ""}`}>
       {children}
     </button>
   );
@@ -488,42 +333,28 @@ function CalendarPicker({
   const todayDay = parseInt(todayStr.slice(8, 10));
 
   return (
-    <div
-      style={{
-        borderBottom: "1px solid var(--border)",
-        padding: "10px 0 14px",
-      }}
-    >
+    <div className={styles.calendar}>
       {/* 月ヘッダー */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <button
-          onClick={prevMonth}
-          style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-mute)", borderRadius: 4, padding: "3px 10px", fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit" }}
-        >
-          ◀
-        </button>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "var(--text-pri)", fontWeight: 700 }}>
-          {MONTHS_JA[calMonth - 1]}
-        </span>
-        <button
-          onClick={nextMonth}
-          style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-mute)", borderRadius: 4, padding: "3px 10px", fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit" }}
-        >
-          ▶
-        </button>
+      <div className={styles.calHeader}>
+        <button onClick={prevMonth} className={styles.calMonthBtn}>◀</button>
+        <span className={styles.calMonthLabel}>{MONTHS_JA[calMonth - 1]}</span>
+        <button onClick={nextMonth} className={styles.calMonthBtn}>▶</button>
       </div>
 
       {/* 曜日ヘッダー */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+      <div className={styles.calDows}>
         {DOWS_JA.map((d, i) => (
-          <div key={d} style={{ textAlign: "center", fontSize: "0.68rem", color: i === 0 ? "#c84b4b88" : i === 6 ? "#4b6ac888" : "var(--text-mute)", padding: "2px 0" }}>
+          <div
+            key={d}
+            className={`${styles.calDow} ${i === 0 ? styles.calDowSun : i === 6 ? styles.calDowSat : ""}`}
+          >
             {d}
           </div>
         ))}
       </div>
 
       {/* 日付グリッド */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+      <div className={styles.calDays}>
         {/* 空白セル */}
         {Array.from({ length: firstDow }).map((_, i) => (
           <div key={`empty-${i}`} />
@@ -534,26 +365,15 @@ function CalendarPicker({
           const isSelected = calMonth === curM && d === curD;
           const isToday = calMonth === todayMonth && d === todayDay;
           const dow = (firstDow + i) % 7;
+          const cls = [
+            styles.calDay,
+            dow === 0 && styles.calDaySun,
+            dow === 6 && styles.calDaySat,
+            isToday && styles.calDayToday,
+            isSelected && styles.calDaySelected,
+          ].filter(Boolean).join(" ");
           return (
-            <button
-              key={d}
-              onClick={() => onSelect(calMonth, d)}
-              style={{
-                background: isSelected ? "#c8a84b" : "transparent",
-                color: isSelected ? "#000" : isToday ? "var(--gold)" : dow === 0 ? "#c84b4b99" : dow === 6 ? "#4b6ac899" : "var(--text-sec)",
-                border: isToday && !isSelected ? "1px solid #c8a84b44" : "1px solid transparent",
-                borderRadius: "50%",
-                width: "100%",
-                aspectRatio: "1/1",
-                fontSize: "0.8rem",
-                fontWeight: isSelected || isToday ? 700 : 400,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
+            <button key={d} onClick={() => onSelect(calMonth, d)} className={cls}>
               {d}
             </button>
           );

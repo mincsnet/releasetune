@@ -109,9 +109,11 @@ export async function GET(request: Request) {
     // Supabaseにupsertするレコードを構築
     const rows = entries.map((e) => {
       const releaseDate = e["im:releaseDate"].label.slice(0, 10);
+      // RSSの画像は最大でも170x170bb.pngなので、URL末尾を600x600bb.jpgに差し替える
+      // （既存データと同じ形式。600x600のPNGはJPGの約5倍の容量で、Jacketはunoptimizedのためそのまま配信される）
       const jacket = e["im:image"]
         .sort((a, b) => Number(b.attributes.height) - Number(a.attributes.height))[0]
-        ?.label.replace("100x100bb", "600x600bb") ?? "";
+        ?.label.replace(/\/\d+x\d+bb\.\w+$/, "/600x600bb.jpg") ?? "";
       const trackId = e.id.attributes["im:id"];
 
       return {

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "notes-review",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["scripts/notes/review_server.py"],
+      "port": 8787
     }
   ]
 }

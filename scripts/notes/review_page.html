@@ -1,0 +1,469 @@
+<title>ReleaseTune 紹介文レビュー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Old+Mincho:wght@700&display=swap">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --surface: #181818;
+  --surface2: #222120;
+  --border: #2d2b27;
+  --text: #f3f2ef;
+  --sec: #b5b3ad;
+  --mute: #7d7a72;
+  --gold: #c8a84b;
+  --gold-ink: #16130a;
+  --ok: #62b98c;
+  --warn: #e3825f;
+  --field: #121212;
+  --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-display: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f5f2; --surface: #ffffff; --surface2: #efede7; --border: #e1ddd3;
+    --text: #1a1916; --sec: #55524b; --mute: #86827a; --gold: #8f711d; --gold-ink: #ffffff;
+    --ok: #2d7a4e; --warn: #b24a28; --field: #fbfaf8;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f5f2; --surface: #ffffff; --surface2: #efede7; --border: #e1ddd3;
+  --text: #1a1916; --sec: #55524b; --mute: #86827a; --gold: #8f711d; --gold-ink: #ffffff;
+  --ok: #2d7a4e; --warn: #b24a28; --field: #fbfaf8;
+  color-scheme: light;
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.75 var(--font-body);
+  padding-inline: 16px; padding-block: 0 96px;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 760px; margin-inline: auto; }
+a { color: var(--gold); }
+button, select, input, textarea { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px;
+}
+
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  margin-inline: -16px; padding: 12px 16px 10px;
+}
+.bar .wrap { display: grid; gap: 8px; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.mark { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; }
+.mark b { color: var(--gold); font-weight: 700; }
+.sub { color: var(--sec); font-size: .85rem; }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+select {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; max-width: 100%;
+}
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button { background: var(--surface); border: 0; padding: 6px 12px; color: var(--sec); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); font-weight: 700; }
+.meter { color: var(--sec); font-size: .8rem; font-variant-numeric: tabular-nums; margin: 0; }
+.meter strong { color: var(--text); font-weight: 700; }
+
+.lead { color: var(--mute); font-size: .8rem; margin: 14px 0 0; }
+.status { min-height: 1.5em; font-size: .85rem; color: var(--sec); margin: 6px 0 10px; }
+.status.err { color: var(--warn); }
+
+.list { display: grid; gap: 14px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; display: grid; gap: 12px;
+}
+.card[data-state="approve"] { border-color: color-mix(in srgb, var(--ok) 55%, var(--border)); }
+.card[data-state="rewrite"], .card[data-state="reject"] { border-color: color-mix(in srgb, var(--warn) 55%, var(--border)); }
+.head { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: start; }
+.jacket { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; background: var(--surface2); display: block; }
+.title { font-weight: 700; line-height: 1.45; text-decoration: none; overflow-wrap: anywhere; }
+.title::after { content: " ↗"; font-weight: 400; font-size: .8em; }
+.tracks { list-style: none; margin: 4px 0 0; padding: 0; color: var(--sec); font-size: .8rem; line-height: 1.6; }
+.tracks li { overflow-wrap: anywhere; }
+.chip {
+  font-size: .72rem; font-weight: 700; white-space: nowrap; letter-spacing: .04em;
+  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--sec);
+}
+.chip.need { border-color: var(--gold); color: var(--gold); }
+.chip.approve { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.chip.rewrite, .chip.reject { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+
+.issues { margin: 0; padding-left: 1.2em; color: var(--warn); font-size: .85rem; }
+.prev { margin: 0; font-size: .85rem; color: var(--sec); background: var(--surface2); border-radius: 6px; padding: 8px 10px; }
+
+.field { display: grid; gap: 4px; }
+.field label { display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; color: var(--mute); letter-spacing: .03em; }
+.count { font-variant-numeric: tabular-nums; }
+.count.over { color: var(--warn); font-weight: 700; }
+textarea, input[type="text"] {
+  width: 100%; background: var(--field); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; line-height: 1.75;
+}
+textarea { resize: vertical; }
+textarea:disabled, input:disabled { opacity: .7; }
+
+details { font-size: .85rem; }
+summary { cursor: pointer; color: var(--sec); padding-block: 2px; }
+.facts { margin: 8px 0 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.facts p { margin: 0; }
+.facts blockquote { margin: 2px 0 0; padding-left: 10px; border-left: 2px solid var(--border); color: var(--mute); }
+pre.source {
+  white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; max-height: 360px; overflow: auto;
+  background: var(--surface2); border-radius: 6px; padding: 10px; font: inherit; font-size: .8rem; line-height: 1.7;
+}
+
+.actions { display: grid; gap: 8px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--border); background: var(--surface2); border-radius: 6px;
+  padding: 8px 14px; cursor: pointer; font-weight: 500;
+}
+.btn.primary { background: var(--ok); border-color: var(--ok); color: var(--bg); font-weight: 700; }
+.btn.danger { color: var(--warn); }
+.btn.danger.armed { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+.btn:disabled { opacity: .45; cursor: default; }
+.hint { font-size: .8rem; color: var(--warn); margin: 0; }
+.decided { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .85rem; color: var(--sec); }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; cursor: pointer; }
+
+.empty { color: var(--sec); text-align: center; padding: 48px 0; }
+
+.bulk {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.bulk .wrap { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.bulk p { margin: 0; font-size: .85rem; color: var(--sec); }
+.bulk p.warn { color: var(--warn); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .card { transition: border-color .2s; }
+}
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">
+      <span class="mark">Release <b>Tune</b></span>
+      <span class="sub">紹介文レビュー</span>
+    </div>
+    <div class="controls">
+      <select id="batch" aria-label="バッチ（下書きを取り込んだ日）"></select>
+      <div class="seg" role="group" aria-label="表示する記事">
+        <button type="button" id="f-need" aria-pressed="true">要確認</button>
+        <button type="button" id="f-all" aria-pressed="false">すべて</button>
+      </div>
+    </div>
+    <p class="meter" id="meter">読み込み中…</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lead">判断はこのページに保存され、Claudeが同期したときに本番へ反映されます（毎日の定期実行、または依頼したとき）。反映されるまでは取り消せます。</p>
+  <div class="status" id="status" role="status"></div>
+  <main class="list" id="list"></main>
+</div>
+
+<footer class="bulk" id="bulk" hidden>
+  <div class="wrap">
+    <p id="bulk-msg"></p>
+    <button type="button" class="btn primary" id="bulk-btn">まとめて承認</button>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const SHORT_MAX = 60, LONG_MIN = 150, LONG_MAX = 400;
+  const LABEL = { approve: "承認・反映待ち", rewrite: "書き直し依頼・反映待ち", reject: "掲載しない・反映待ち" };
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else n.setAttribute(k, v);
+    }
+    for (const c of kids) if (c != null) n.append(c);
+    return n;
+  };
+  const jaDate = (d) => {
+    const [y, m, day] = String(d || "").split("-");
+    return y && m && day ? `${y}年${+m}月${+day}日` : d || "";
+  };
+
+  let db = null;
+  let articles = new Map();   // id -> article
+  let decisions = new Map();  // id -> decision
+  let filter = "need";
+  let loadedA = false, loadedD = false;
+  const cards = new Map();    // id -> {root, refs}
+
+  function setStatus(msg, isErr = false) {
+    const s = $("status");
+    s.textContent = msg || "";
+    s.classList.toggle("err", !!isErr);
+  }
+
+  // ── バッチ ──
+  function batches() {
+    const set = new Set([...articles.values()].map((a) => a.batch_id));
+    return [...set].sort().reverse();
+  }
+  function currentBatch() { return $("batch").value; }
+  function renderBatchSelect() {
+    const sel = $("batch"), cur = sel.value, list = batches();
+    sel.replaceChildren(...list.map((b) => {
+      const inBatch = [...articles.values()].filter((a) => a.batch_id === b);
+      const need = inBatch.filter((a) => a.review_required && !decisions.has(a.id)).length;
+      return el("option", { value: b, text: `${b}（未判断の要確認 ${need} / 全 ${inBatch.length}）` });
+    }));
+    if (list.includes(cur)) sel.value = cur;
+    else {
+      const firstNeed = list.find((b) => [...articles.values()].some((a) => a.batch_id === b && a.review_required && !decisions.has(a.id)));
+      if (firstNeed) sel.value = firstNeed;
+    }
+  }
+
+  // ── カード ──
+  function counter(textarea, countEl, min, max) {
+    const n = textarea.value.trim().length;
+    countEl.textContent = min ? `${n}字（${min}〜${max}、空でも可）` : `${n} / ${max}字`;
+    countEl.classList.toggle("over", n > max || (min > 0 && n > 0 && n < min));
+  }
+
+  function buildCard(a) {
+    const id = a.id;
+    const img = el("img", { class: "jacket", alt: "", loading: "lazy" });
+    if (a.tracks?.[0]?.jacket) img.src = a.tracks[0].jacket;
+    const chip = el("span", { class: "chip" });
+    const head = el("div", { class: "head" }, img,
+      el("div", {},
+        el("a", { class: "title", href: a.wiki_url, target: "_blank", rel: "noopener", text: a.wiki_title }),
+        el("ul", { class: "tracks" }, ...(a.tracks || []).map((t) => el("li", { text: `${t.title} · ${t.artist} · ${jaDate(t.release_date)}` })))),
+      chip);
+
+    const issues = (a.issues || []).length
+      ? el("ul", { class: "issues" }, ...a.issues.map((i) => el("li", { text: i.detail || i.type })))
+      : null;
+    const prev = a.reviewer_comment ? el("p", { class: "prev", text: `前回のコメント: ${a.reviewer_comment}` }) : null;
+
+    const sCount = el("span", { class: "count" }), lCount = el("span", { class: "count" });
+    const sArea = el("textarea", { id: `s-${id}`, rows: "2" }); sArea.value = a.note_short || "";
+    const lArea = el("textarea", { id: `l-${id}`, rows: "7" }); lArea.value = a.note_long || "";
+    sArea.addEventListener("input", () => counter(sArea, sCount, 0, SHORT_MAX));
+    lArea.addEventListener("input", () => counter(lArea, lCount, LONG_MIN, LONG_MAX));
+    counter(sArea, sCount, 0, SHORT_MAX); counter(lArea, lCount, LONG_MIN, LONG_MAX);
+    const fieldS = el("div", { class: "field" }, el("label", { for: `s-${id}` }, el("span", { text: "短文（カード・注目曲）" }), sCount), sArea);
+    const fieldL = el("div", { class: "field" }, el("label", { for: `l-${id}` }, el("span", { text: "長文（楽曲詳細ページ）" }), lCount), lArea);
+
+    const facts = el("details", {},
+      el("summary", { text: `根拠（${(a.facts || []).length}件）` }),
+      el("ol", { class: "facts" }, ...(a.facts || []).map((f) => el("li", {}, el("p", { text: f.claim }), el("blockquote", { text: f.source })))));
+    const source = el("details", {},
+      el("summary", { text: "出典テキスト" }),
+      el("pre", { class: "source", text: a.source_text || "" }));
+
+    const comment = el("input", { type: "text", id: `c-${id}`, placeholder: "コメント（書き直し依頼では必須）" });
+    const hint = el("p", { class: "hint", hidden: "" });
+    const bApprove = el("button", { type: "button", class: "btn primary", text: "承認" });
+    const bRewrite = el("button", { type: "button", class: "btn", text: "書き直し依頼" });
+    const bReject = el("button", { type: "button", class: "btn danger", text: "掲載しない" });
+    const actions = el("div", { class: "actions" }, comment, hint, el("div", { class: "btns" }, bApprove, bRewrite, bReject));
+    const undo = el("button", { type: "button", class: "linkbtn", text: "取り消す" });
+    const decidedText = el("span");
+    const decided = el("div", { class: "decided", hidden: "" }, decidedText, undo);
+
+    const root = el("article", { class: "card", "data-id": id }, head, issues, prev, fieldS, fieldL, facts, source, actions, decided);
+    const refs = { chip, sArea, lArea, sCount, lCount, comment, hint, actions, decided, decidedText, bApprove, bRewrite, bReject };
+
+    const showHint = (msg) => { hint.textContent = msg; hint.hidden = !msg; };
+    let armTimer = null;
+    bApprove.addEventListener("click", () => {
+      if (!sArea.value.trim()) return showHint("短文が空です。");
+      decide(a, "approve", refs);
+    });
+    bRewrite.addEventListener("click", () => {
+      if (!comment.value.trim()) { showHint("書き直してほしい点をコメントに書いてください。"); comment.focus(); return; }
+      decide(a, "rewrite", refs);
+    });
+    bReject.addEventListener("click", () => {
+      if (!bReject.classList.contains("armed")) {
+        bReject.classList.add("armed"); bReject.textContent = "もう一度押すと掲載しない";
+        clearTimeout(armTimer);
+        armTimer = setTimeout(() => { bReject.classList.remove("armed"); bReject.textContent = "掲載しない"; }, 4000);
+        return;
+      }
+      clearTimeout(armTimer); bReject.classList.remove("armed"); bReject.textContent = "掲載しない";
+      decide(a, "reject", refs);
+    });
+    undo.addEventListener("click", () => undoDecision(a, refs));
+    return { root, refs };
+  }
+
+  function paintCard(a, c) {
+    const d = decisions.get(a.id), r = c.refs;
+    c.root.dataset.state = d ? d.action : "pending";
+    r.chip.className = "chip " + (d ? d.action : a.review_required ? "need" : "");
+    r.chip.textContent = d ? LABEL[d.action] : a.review_required ? "要確認" : "抜き取り外";
+    for (const x of [r.sArea, r.lArea, r.comment]) x.disabled = !!d;
+    if (d) {
+      r.sArea.value = d.note_short ?? r.sArea.value;
+      r.lArea.value = d.note_long ?? r.lArea.value;
+      r.comment.value = d.comment || "";
+      counter(r.sArea, r.sCount, 0, SHORT_MAX); counter(r.lArea, r.lCount, LONG_MIN, LONG_MAX);
+    }
+    r.actions.hidden = !!d;
+    r.decided.hidden = !d;
+    r.decidedText.textContent = d ? `${LABEL[d.action]}${d.comment ? `（コメント: ${d.comment}）` : ""}` : "";
+  }
+
+  function render() {
+    renderBatchSelect();
+    const b = currentBatch();
+    const inBatch = [...articles.values()].filter((a) => a.batch_id === b)
+      .sort((x, y) => (y.review_required - x.review_required) || String(x.tracks?.[0]?.release_date).localeCompare(String(y.tracks?.[0]?.release_date)));
+    const shown = inBatch.filter((a) => filter === "all" || a.review_required);
+
+    for (const [id, c] of cards) if (!articles.has(id)) { c.root.remove(); cards.delete(id); }
+    const list = $("list");
+    const nodes = shown.map((a) => {
+      let c = cards.get(a.id);
+      if (!c) { c = buildCard(a); cards.set(a.id, c); }
+      paintCard(a, c);
+      return c.root;
+    });
+    if (!nodes.length) {
+      list.replaceChildren(el("p", { class: "empty", text: articles.size ? "このバッチに表示する記事はありません。" : "確認待ちの下書きはありません。" }));
+    } else {
+      // 入力中の内容を失わないよう、既存のカードは作り直さない。並びが変わったときだけ並べ替える
+      const same = nodes.length === list.children.length && nodes.every((n, i) => list.children[i] === n);
+      if (!same) list.replaceChildren(...nodes);
+    }
+
+    const need = inBatch.filter((a) => a.review_required);
+    const needDone = need.filter((a) => decisions.has(a.id)).length;
+    const rest = inBatch.filter((a) => !a.review_required && !decisions.has(a.id));
+    const decidedCount = inBatch.filter((a) => decisions.has(a.id)).length;
+    $("meter").replaceChildren(
+      "要確認 ", el("strong", { text: `${needDone} / ${need.length}` }), " 判断済み ・ 抜き取り外 ",
+      el("strong", { text: String(inBatch.length - need.length) }), " ・ 反映待ち ", el("strong", { text: String(decidedCount) }));
+    renderBulk(need, needDone, rest, inBatch);
+  }
+
+  let bulkArmed = false;
+  function renderBulk(need, needDone, rest, inBatch) {
+    const bar = $("bulk"), msg = $("bulk-msg"), btn = $("bulk-btn");
+    if (!rest.length) { bar.hidden = true; return; }
+    bar.hidden = false;
+    const sentBack = inBatch.some((a) => ["rewrite", "reject"].includes(decisions.get(a.id)?.action));
+    msg.classList.toggle("warn", sentBack);
+    if (needDone < need.length) {
+      msg.textContent = `要確認があと ${need.length - needDone} 件あります。判断を終えると、抜き取り外の ${rest.length} 件をまとめて承認できます。`;
+      btn.disabled = true; btn.textContent = "まとめて承認";
+      return;
+    }
+    btn.disabled = false;
+    if (sentBack) {
+      msg.textContent = `抜き取り分に差し戻しがあります。「すべて」で残り ${rest.length} 件も確認することをおすすめします。`;
+      btn.textContent = bulkArmed ? "それでも承認する" : `抜き取り外 ${rest.length} 件を承認`;
+    } else {
+      msg.textContent = `抜き取り外の ${rest.length} 件は、要確認と同じ条件で書かれた下書きです。`;
+      btn.textContent = `抜き取り外 ${rest.length} 件を承認`;
+    }
+  }
+
+  // ── 書き込み ──
+  async function decide(a, action, refs) {
+    for (const b of [refs.bApprove, refs.bRewrite, refs.bReject]) b.disabled = true;
+    refs.hint.hidden = true;
+    try {
+      await db.collection("decisions").doc(a.id).set({
+        batch_id: a.batch_id, wiki_title: a.wiki_title, action,
+        note_short: refs.sArea.value.trim(), note_long: refs.lArea.value.trim(),
+        comment: refs.comment.value.trim(), decided_at: new Date().toISOString(),
+      });
+      setStatus(`「${a.wiki_title}」を${LABEL[action]}にしました。`);
+    } catch (e) {
+      setStatus(`保存できませんでした（${e?.code || "error"}）。時間をおいてもう一度押してください。`, true);
+    } finally {
+      for (const b of [refs.bApprove, refs.bRewrite, refs.bReject]) b.disabled = false;
+    }
+  }
+
+  async function undoDecision(a) {
+    try {
+      await db.collection("decisions").doc(a.id).delete();
+      setStatus(`「${a.wiki_title}」の判断を取り消しました。`);
+    } catch (e) {
+      setStatus(`取り消せませんでした（${e?.code || "error"}）。すでに本番へ反映された可能性があります。`, true);
+    }
+  }
+
+  $("bulk-btn").addEventListener("click", async () => {
+    const b = currentBatch();
+    const inBatch = [...articles.values()].filter((a) => a.batch_id === b);
+    const sentBack = inBatch.some((a) => ["rewrite", "reject"].includes(decisions.get(a.id)?.action));
+    if (sentBack && !bulkArmed) { bulkArmed = true; render(); return; }
+    bulkArmed = false;
+    const rest = inBatch.filter((a) => !a.review_required && !decisions.has(a.id));
+    const btn = $("bulk-btn"); btn.disabled = true;
+    let ok = 0;
+    for (const a of rest) {
+      try {
+        await db.collection("decisions").doc(a.id).set({
+          batch_id: a.batch_id, wiki_title: a.wiki_title, action: "approve",
+          note_short: a.note_short || "", note_long: a.note_long || "", comment: "",
+          decided_at: new Date().toISOString(), bulk: true,
+        });
+        ok++;
+        setStatus(`まとめて承認しています… ${ok} / ${rest.length}`);
+      } catch (e) {
+        setStatus(`${ok} 件を承認したところで止まりました（${e?.code || "error"}）。もう一度押すと続きから承認します。`, true);
+        btn.disabled = false;
+        return;
+      }
+    }
+    setStatus(`抜き取り外の ${ok} 件を承認しました。`);
+  });
+
+  $("batch").addEventListener("change", () => { bulkArmed = false; render(); window.scrollTo({ top: 0 }); });
+  for (const [id, f] of [["f-need", "need"], ["f-all", "all"]]) {
+    $(id).addEventListener("click", () => {
+      filter = f;
+      $("f-need").setAttribute("aria-pressed", String(f === "need"));
+      $("f-all").setAttribute("aria-pressed", String(f === "all"));
+      render();
+    });
+  }
+
+  // ── 起動 ──
+  (async () => {
+    db = await window.claude?.use?.("db");
+    if (!db) {
+      $("meter").textContent = "";
+      $("list").replaceChildren(el("p", { class: "empty", text: "この表示ではデータを読み込めません。claude.ai かClaudeのアプリで開いてください。" }));
+      return;
+    }
+    const onErr = (e) => setStatus(`データを読み込めませんでした（${e?.code || "error"}）。ページを開き直してください。`, true);
+    db.collection("articles").onSnapshot((snap) => {
+      articles = new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+      loadedA = true;
+      if (loadedD) render();
+    }, onErr);
+    db.collection("decisions").onSnapshot((snap) => {
+      decisions = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      loadedD = true;
+      if (loadedA) render();
+    }, onErr);
+  })();
+})();
+</script>

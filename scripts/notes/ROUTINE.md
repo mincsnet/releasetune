@@ -43,6 +43,8 @@
 
 特定の日付の曲だけを対象にしたいとき（「今日リリースの曲で」など）は、収集を `python3 scripts/notes/collect.py --mmdd 09-30` のように日付指定で行う。
 
+DBの曲名を直した後（`scripts/titles/fix_ja_titles.py` など）は、`python3 scripts/notes/collect.py --rematch` で「記事なし」と記録した曲のうち曲名が変わったものだけを照合し直せる。
+
 ## 守ること
 
 - `tracks` テーブルは直接書き換えない（公開はレビューでの承認だけ）

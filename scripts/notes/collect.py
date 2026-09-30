@@ -14,6 +14,7 @@ collect.py — Wikipedia から紹介文の出典を集める
 使い方:
     python3 scripts/notes/collect.py --dry-run --artist "中森明菜"   # 書き込みなしで確認
     python3 scripts/notes/collect.py --articles 20                   # 毎日の実行
+    python3 scripts/notes/collect.py --rematch                       # 曲名を直した後に「記事なし」の曲を照合し直す
 """
 
 import csv, re, sys
@@ -209,22 +210,27 @@ def draft_row(track_id: str, status: str, **kw) -> dict:
     }
 
 
-def process_artist(artist: dict, need: int, dry_run: bool, mmdd: str | None = None) -> tuple[list[dict], set[str], bool]:
+def process_artist(artist: dict, need: int, dry_run: bool, mmdd: str | None = None,
+                   only_ids: set[str] | None = None) -> tuple[list[dict], set[str], bool]:
     """(書き込む行, 今回 sourced にした記事名, このアーティストの曲をすべて処理したか)
-    mmdd を指定すると、その日付（例: "09-30"）の曲だけを対象にする"""
+    mmdd を指定すると、その日付（例: "09-30"）の曲だけを対象にする
+    only_ids を指定すると、その曲だけを記録済みでも照合し直す（--rematch 用）"""
     name = artist["db_artist"]
     params = {"select": "id,title,release_date", "artist": f"eq.{name}", "order": "release_date.asc"}
     if mmdd:
         params["mmdd"] = f"eq.{mmdd}"
     tracks = sb_select("tracks", params)
-    try:
-        done_ids = {r["track_id"] for r in
-                    sb_select_in("track_note_drafts", "track_id", [t["id"] for t in tracks], "track_id")}
-    except Exception:
-        if not dry_run:
-            raise
-        done_ids = set()  # ドライランはテーブル作成前でも確認できるようにする
-    todo = [t for t in tracks if t["id"] not in done_ids]
+    if only_ids is not None:
+        todo = [t for t in tracks if t["id"] in only_ids]
+    else:
+        try:
+            done_ids = {r["track_id"] for r in
+                        sb_select_in("track_note_drafts", "track_id", [t["id"] for t in tracks], "track_id")}
+        except Exception:
+            if not dry_run:
+                raise
+            done_ids = set()  # ドライランはテーブル作成前でも確認できるようにする
+        todo = [t for t in tracks if t["id"] not in done_ids]
     if not todo:
         return [], set(), True
 
@@ -298,18 +304,36 @@ def process_artist(artist: dict, need: int, dry_run: bool, mmdd: str | None = No
     return rows, sourced, complete
 
 
+def renamed_no_article() -> dict[str, set[str]]:
+    """「記事なし」と記録した後に曲名が変わった曲（ローマ字表記の曲名を日本語に直した等）を、アーティストごとに返す"""
+    drafts = sb_select("track_note_drafts", {"select": "track_id,issues", "status": "eq.no_article"})
+    recorded = {d["track_id"]: (d["issues"] or [{}])[0].get("title") for d in drafts}
+    out: dict[str, set[str]] = defaultdict(set)
+    for t in sb_select_in("tracks", "id", list(recorded), "id,title,artist"):
+        if recorded[t["id"]] and recorded[t["id"]] != t["title"]:
+            out[t["artist"]].add(t["id"])
+    return out
+
+
 def main():
     ap = ArgumentParser(description="Wikipedia から紹介文の出典を集める")
     ap.add_argument("--articles", type=int, default=20, help="未執筆の記事をこの件数まで補充する（デフォルト: 20）")
     ap.add_argument("--artist", help="このアーティストだけ処理する（テスト用。補充件数の上限は無視）")
     ap.add_argument("--per-artist", type=int, default=10**9, help="1アーティストあたりの新しい記事の上限（試作で幅広く集めたいとき用）")
     ap.add_argument("--mmdd", help="この日付（例: 09-30）にリリースされた曲だけを処理する（補充件数の上限は無視）")
+    ap.add_argument("--rematch", action="store_true", help="「記事なし」と記録した後に曲名が直った曲だけを照合し直す（補充件数の上限は無視）")
     ap.add_argument("--dry-run", action="store_true", help="Supabase と artists.csv に書き込まない")
     args = ap.parse_args()
 
     artists = load_artists()
+    only: dict[str, set[str]] = {}
 
-    if args.artist:
+    if args.rematch:
+        only = renamed_no_article()
+        order = sorted(only, key=lambda a: -len(only[a]))
+        need = 10**9
+        print(f"曲名が直った「記事なし」の曲: {sum(map(len, only.values()))}曲 / {len(order)}アーティスト")
+    elif args.artist:
         order = [args.artist]
         need = 10**9
     elif args.mmdd:
@@ -337,16 +361,17 @@ def main():
             if not args.dry_run:
                 save_artists(artists)
         a = artists[name]
-        # 日付指定のときは、ほかの日付の曲を処理済みのアーティスト（done）も対象にする
-        if a["status"] != "pending" and not (args.mmdd and a["status"] == "done"):
-            if args.artist:
-                print(f"  対象外（status={a['status']}）")
+        # 日付指定・照合し直しのときは、処理済みのアーティスト（done）も対象にする
+        if a["status"] != "pending" and not ((args.mmdd or args.rematch) and a["status"] == "done"):
+            if args.artist or args.rematch:
+                print(f"[対象外] {name}（status={a['status']}）")
             continue
 
         print(f"[収集] {name}")
-        rows, sourced, complete = process_artist(a, min(need - total_sourced, args.per_artist), args.dry_run, args.mmdd)
-        if args.mmdd:
-            complete = False   # 日付の曲しか見ていないので、アーティストの完了とはみなさない
+        rows, sourced, complete = process_artist(a, min(need - total_sourced, args.per_artist), args.dry_run,
+                                                 args.mmdd, only.get(name))
+        if args.mmdd or args.rematch:
+            complete = False   # 一部の曲しか見ていないので、アーティストの完了とはみなさない
         if not args.dry_run:
             if rows:
                 sb_upsert("track_note_drafts", rows, on_conflict="track_id")

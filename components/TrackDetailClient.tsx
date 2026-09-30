@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Track } from "@/lib/utils";
-import { yearsAgo, formatDateJa } from "@/lib/utils";
+import { yearsAgo, formatDateJa, getTodayMmdd, socialTitle, artistHashtag } from "@/lib/utils";
 import { Jacket } from "@/components/Jacket";
 import { SvcGrid } from "@/components/SvcLinks";
 import { gaEvent } from "@/components/GoogleAnalytics";
@@ -19,16 +19,30 @@ interface Props {
 export function TrackDetailClient({ track, mmdd, month, day, siblings }: Props) {
   const years = yearsAgo(track.releaseDate);
 
-  const shareText = `📅${formatDateJa(track.releaseDate)}リリース\n${track.artist}「${track.title}」${years > 0 ? `（${years}年前！）` : ""}\n\n#ReleaseTune\nhttps://releasetune.com/track/${track.id}`;
+  // シェアボタンを押した時点の日付で文面を作る（リリース日の当日は周年を先頭に出す）
+  function shareText(tags: string[]): string {
+    const song = `${track.artist}「${socialTitle(track.title)}」`;
+    const date = `${formatDateJa(track.releaseDate)}リリース`;
+    const isAnniversary = years > 0 && track.releaseDate.slice(5) === getTodayMmdd();
+    const body = isAnniversary
+      ? `🎉 今日で発売から${years}年\n${song}\n📅 ${date}`
+      : `📅${date}\n${song}${years > 0 ? `（${years}年前！）` : ""}`;
+    return `${body}\n\n${tags.map((t) => `#${t}`).join(" ")}\nhttps://releasetune.com/track/${track.id}`;
+  }
+
+  const artistTag = artistHashtag(track.artist);
 
   function shareX() {
     gaEvent("share", { method: "X", track_title: track.title, artist: track.artist });
-    window.open("https://x.com/intent/tweet?text=" + encodeURIComponent(shareText), "_blank");
+    const tags = artistTag ? [artistTag, "ReleaseTune"] : ["ReleaseTune"];
+    window.open("https://x.com/intent/tweet?text=" + encodeURIComponent(shareText(tags)), "_blank");
   }
 
   function shareThreads() {
     gaEvent("share", { method: "Threads", track_title: track.title, artist: track.artist });
-    window.open("https://www.threads.net/intent/post?text=" + encodeURIComponent(shareText), "_blank");
+    // Threads はタグが1投稿に1つまでなので、見つけてもらいやすいアーティスト名を優先する
+    const tags = [artistTag ?? "ReleaseTune"];
+    window.open("https://www.threads.net/intent/post?text=" + encodeURIComponent(shareText(tags)), "_blank");
   }
 
   return (

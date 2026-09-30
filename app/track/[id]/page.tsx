@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTrackById, getTracksByMmdd, parseMmdd, yearsAgo, formatDateJa } from "@/lib/tracks";
 import { SiteHeader } from "@/components/SiteHeader";
 import { TrackDetailClient } from "@/components/TrackDetailClient";
+import { socialTitle } from "@/lib/utils";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -18,29 +19,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { track } = result;
   const years = yearsAgo(track.releaseDate);
   const title = `${track.title} — ${track.artist}`;
+  // シェア時のカードに出るタイトルは、カード画像・シェア文と揃えて「 - Single」を外す
+  const socialCardTitle = `${socialTitle(track.title)} — ${track.artist}`;
   const description = track.note
     ? track.note.slice(0, 120)
     : `${formatDateJa(track.releaseDate)}リリース${years > 0 ? `（${years}年前）` : ""}。${track.artist}の楽曲「${track.title}」。`;
 
-  const ogImage = track.jacket
-    ? [{ url: track.jacket, width: 600, height: 600, alt: track.title }]
-    : undefined;
-
+  // カード画像は同じフォルダの opengraph-image.tsx が生成し、og:image と twitter:image の両方に自動で出力される
   return {
     title,
     description,
     openGraph: {
-      title,
+      title: socialCardTitle,
       description,
       url: `https://releasetune.com/track/${id}`,
-      images: ogImage,
       type: "music.song",
     },
     twitter: {
-      card: track.jacket ? "summary_large_image" : "summary",
-      title,
+      card: "summary_large_image",
+      title: socialCardTitle,
       description,
-      images: track.jacket ? [track.jacket] : undefined,
     },
     alternates: {
       canonical: `https://releasetune.com/track/${id}`,

@@ -33,6 +33,21 @@ export function formatDateJa(releaseDate: string): string {
   return `${y}年${parseInt(m)}月${parseInt(d)}日`;
 }
 
+// SNS（シェア文・カード画像）用の曲名。Apple Music が付ける末尾の「 - Single」は不要なので外す
+// （「 - EP」は作品の種類を表すので残す）
+export function socialTitle(title: string): string {
+  return title.replace(/ - Single$/, "");
+}
+
+// アーティスト名のハッシュタグ（#なし）。記号・空白を除いて作る。
+// 共演名義（「A & B」「A feat. B」など）は1つのタグにすると別の言葉になるので作らない
+export function artistHashtag(artist: string): string | null {
+  if (/[&＆、,，×\/／]| x |feat\.|featuring/i.test(artist)) return null;
+  const tag = artist.replace(/[^\p{L}\p{M}\p{N}_]/gu, "");
+  // 数字だけのタグはXでタグとして扱われない
+  return /\p{L}/u.test(tag) ? tag : null;
+}
+
 export function parseMmdd(mmdd: string): { month: number; day: number } {
   const [m, d] = mmdd.split("-").map(Number);
   return { month: m, day: d };

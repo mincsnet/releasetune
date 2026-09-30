@@ -49,6 +49,12 @@ MB_HEADERS = {
 }
 
 
+def search_query(text: str) -> str:
+    """検索URL（Spotify・Amazon Music・YouTube）用に検索語をエンコードする。
+    「/」がパス区切りとして残ると Amazon Music・Spotify で検索できないため空白にする"""
+    return requests.utils.quote(" ".join(text.replace("/", " ").split()), safe="")
+
+
 # ════════════════════════════════════════════════════════════════
 # MusicBrainz API
 # ════════════════════════════════════════════════════════════════
@@ -331,7 +337,7 @@ def get_spotify_client() -> spotipy.Spotify | None:
 def spotify_search(sp: spotipy.Spotify, title: str, artist: str) -> str:
     fallback = (
         "https://open.spotify.com/search/"
-        + requests.utils.quote(f"{artist} {title}")
+        + search_query(f"{artist} {title}")
     )
     try:
         for query in [f"track:{title} artist:{artist}", f"{artist} {title}"]:
@@ -351,11 +357,11 @@ def spotify_search(sp: spotipy.Spotify, title: str, artist: str) -> str:
 # ════════════════════════════════════════════════════════════════
 
 def build_youtube_url(title: str, artist: str) -> str:
-    return "https://www.youtube.com/results?search_query=" + requests.utils.quote(f"{artist} {title} 公式")
+    return "https://www.youtube.com/results?search_query=" + search_query(f"{artist} {title} 公式")
 
 
 def build_amazon_url(title: str, artist: str) -> str:
-    return "https://music.amazon.co.jp/search/" + requests.utils.quote(f"{title} {artist}")
+    return "https://music.amazon.co.jp/search/" + search_query(f"{title} {artist}")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -407,7 +413,7 @@ def collect_for_date(month: int, day: int, sp) -> list[dict]:
 
         # ④ Spotify 直接URL
         spotify_url = spotify_search(sp, title, artist) if sp else (
-            "https://open.spotify.com/search/" + requests.utils.quote(f"{artist} {title}")
+            "https://open.spotify.com/search/" + search_query(f"{artist} {title}")
         )
 
         # ⑤ YouTube・Amazon 検索URL

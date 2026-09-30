@@ -54,6 +54,13 @@ SLEEP_SPOTIFY = 0.3
 # シングル・EPのみ対象（アルバム・コンピは除外）
 TARGET_FORMATS = {"Single", "EP"}
 
+
+def search_query(text: str) -> str:
+    """検索URL（Spotify・Amazon Music・YouTube）用に検索語をエンコードする。
+    「/」がパス区切りとして残ると Amazon Music・Spotify で検索できないため空白にする"""
+    return requests.utils.quote(" ".join(text.replace("/", " ").split()), safe="")
+
+
 # ════════════════════════════════════════════════════════════════
 # Discogs
 # ════════════════════════════════════════════════════════════════
@@ -265,7 +272,7 @@ def get_spotify():
 
 
 def spotify_url(title: str, artist: str) -> str:
-    fallback = "https://open.spotify.com/search/" + requests.utils.quote(f"{artist} {title}")
+    fallback = "https://open.spotify.com/search/" + search_query(f"{artist} {title}")
     sp = get_spotify()
     if not sp:
         return fallback
@@ -378,8 +385,8 @@ def process_artist(name: str, db: dict) -> int:
         sp_url = spotify_url(title, artist)
 
         # ⑤ YouTube・Amazon 検索URL
-        q   = requests.utils.quote(f"{artist} {title}")
-        yt  = "https://www.youtube.com/results?search_query=" + requests.utils.quote(f"{artist} {title} 公式")
+        q   = search_query(f"{artist} {title}")
+        yt  = "https://www.youtube.com/results?search_query=" + search_query(f"{artist} {title} 公式")
         amz = "https://music.amazon.co.jp/search/" + q
 
         track = {

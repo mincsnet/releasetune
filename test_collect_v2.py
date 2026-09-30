@@ -58,6 +58,12 @@ HEADERS = {
 SLEEP = 1.2
 
 
+def search_query(text: str) -> str:
+    """検索URL（Spotify・Amazon Music・YouTube）用に検索語をエンコードする。
+    「/」がパス区切りとして残ると Amazon Music・Spotify で検索できないため空白にする"""
+    return requests.utils.quote(" ".join(text.replace("/", " ").split()), safe="")
+
+
 # ── Discogs: アーティストID検索 ───────────────────────────────
 def find_artist_id(name: str) -> int | None:
     """アーティスト名から Discogs の artist ID を取得"""
@@ -291,7 +297,7 @@ def main():
                 jacket_url = itunes.get("artworkUrl100", "").replace("100x100bb", "600x600bb")
                 apple_url  = itunes.get("trackViewUrl", "")
 
-            q = requests.utils.quote(f"{artist} {title}")
+            q = search_query(f"{artist} {title}")
             track = {
                 "id":          m["id"],
                 "title":       title,
@@ -303,7 +309,7 @@ def main():
                 "links": {
                     "spotify":  f"https://open.spotify.com/search/{q}",
                     "apple":    apple_url,
-                    "youtube":  f"https://www.youtube.com/results?search_query={requests.utils.quote(artist+' '+title+' 公式')}",
+                    "youtube":  f"https://www.youtube.com/results?search_query={search_query(artist+' '+title+' 公式')}",
                     "amazon":   f"https://music.amazon.co.jp/search/{q}",
                 },
                 "source":       "discogs",

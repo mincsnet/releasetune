@@ -137,7 +137,9 @@
   - **方式**: `scripts/titles/fix_search_slash.py`（`apply --dry-run` / `apply --ids` / `apply` / `revert`）。検索語をunquote→「/」を空白→空白を1つにまとめる→`quote(safe="")`。`revert`は反映後に値が変わっていない列だけ戻す（spotify-backfill cronが直リンクに置き換えた列は戻さない）
   - 試験5件（湘南乃風・EXILE / EXILE THE SECOND・DISH//・なにわ男子「勇気100%」・谷村新司）→ ブラウザで検索できることと`revert`を確認 → 全件反映（1,255行、amazon 1,255件・spotify 1,141件）。反映後、PostgRESTの`like`で数えた件数が両列とも0、検索URLの総数（amazon 32,093・spotify 29,542）は変化なし。無作為の3曲（hitomi・DREAMS COME TRUE・Superfly）もAmazon・Spotifyで検索できることを確認
   - 変更前の値: `data/titles/slash_fixed_20260930-134705.jsonl`（試験5件、`revert`済み）、`slash_fixed_20260930-134924.jsonl`（全件）
-  - **再発**: 新着cron（`new-releases`）は amazon/spotify/youtube を null で入れ、`spotify-backfill`は直リンクだけを書くので再発しない。ただし上の古い収集スクリプトは`safe='/'`のままなので、再実行すると再発する（使うなら`quote(..., safe="")`＋「/」を空白に直してから）
+  - **再発**: 新着cron（`new-releases`）は amazon/spotify/youtube を null で入れ、`spotify-backfill`は直リンクだけを書くので再発しない
+  - [x] 古い収集スクリプトも修正（2026-09-30）: `collect.py`・`collect_all.py`・`collect_itunes.py`・`test_collect.py`・`test_collect_v2.py`に`search_query()`（「/」を空白→空白を1つにまとめる→`quote(safe="")`）を追加し、Spotify・Amazon・YouTubeの検索語はすべてこれを通すようにした。git管理外の`add_spotify.py`（メインのチェックアウトにのみある）も同様に修正
+    - 確認: 6ファイルとも、今回の修正ログ2,396件の変更前の検索語から作るとDB修正後の値と完全に一致。「/」を含まない既存の検索URL（約9.2万件）は、同じ検索語から作り直すと、連続空白をまとめた273件と既存が半分だけエンコードされていた80件を除いて完全に同じ。`collect_itunes.parse_album`などに「/」入りの曲名を渡して、3サービスとも空白になることを確認
   - メモ: Spotify検索URLのうち80件は検索語が半分だけエンコードされている（空白・日本語が生のまま。例:`Number_i%20GOAT - Single`）。ブラウザが自動でエンコードするので実害はなく、検索語が欠けるのは生の「?」を含む1件（欅坂46「誰がその鐘を鳴らすのか?」、末尾の「?」が落ちるだけ）のみ。未対応
 
 ## 進行中: SNS（X・Threads）でのシェアの見栄え改善（2026-09-30〜）

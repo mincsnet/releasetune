@@ -129,7 +129,9 @@
   - 変更前の値: `data/titles/applied_20260930-131529.jsonl`（試験20件）、`applied_20260930-131555.jsonl`（残り全件）。反映した候補一覧は`proposals_applied_20260930.csv`
   - 本番サイトは`unstable_cache`（楽曲詳細等24時間・日付ページ1時間）のため、最大24時間で新しい曲名に切り替わる
   - **ハマりどころ**: Amazon Musicの検索URLは検索語に「/」があると、そのままではトップページへ、`%2F`では404になる。空白に置き換えると正しく検索できる。反映時は検索語の「/」を空白にした
-- [ ] `changed`の24件（`data/titles/proposals.csv`に残っている）: DBの曲名がAppleの今の英語名とも違う。多くは「- Single」の付け外しや大文字化で無害だが、BOBBY SHANN「Cruel Angel (feat. Yoko Takahashi) - Single」→「Call From The Sky - Single」のようにApple側で作品が差し替わったとみられるものがある。直すなら1件ずつ確認して`apply --kinds changed --ids ...`
+- [x] `changed`の24件（DBの曲名がAppleの今の英語名とも違う＝取り込み後にApple側で名前が変わった）をユーザーと1件ずつ確認（2026-09-30）
+  - 反映した18件（`data/titles/applied_20260930-201117.jsonl`）: 公式表記の更新15件（SEVENTEEN「17 Carat - EP」→「17 CARAT」、X JAPAN「Forever Love」→「Forever Love - Single」など）と、作品名が変わった3件（BOBBY SHANN「Cruel Angel (feat. Yoko Takahashi) - Single」→「Call From The Sky - Single」: Apple側の中身も「Call From The Sky」1曲のみ。Tame Impala & JENNIE「Dracula (Remix)」→「Dracula (with JENNIE)」、aespa「Keychain」の副題）。リンク先のApple Musicと名前を合わせるため
+  - 今のまま残した6件（`data/titles/proposals.csv`に残っている）: 揃えると情報が減るもの。NSK「hello, stranger.(feat. Junko Ohashi)」（大橋純子の名前が消える）、Manish Vyas 2件（feat.が消える）、SEVENTEEN「Love&Letter (Repackage Album)」（元のアルバムと区別できなくなる）、テイラー・スウィフトのリミックス（Apple側が「Remix )」と空白の誤り）、私立恵比寿中学「FAMIEN '26 e.p.」（全角「’」になり検索しにくい）
 - [ ] 後続: 紹介文の収集（`scripts/notes/collect.py`）で曲名がローマ字のため照合できなかった曲（氷川きよし等）を照合し直す
 - [x] 別件: 曲名を変えていない行にも、検索語に「/」をそのまま含むAmazon検索URLが1,255件、Spotify検索URLが1,141件残っていた（以前からの不具合。上のハマりどころ参照）→ 2026-09-30に修正
   - **原因**: 過去の収集スクリプト（`collect_itunes.py`・`collect_all.py`・`collect.py`・`add_spotify.py`）が`requests.utils.quote`（`safe='/'`が既定）で検索語をエンコードしたため、アーティスト名・曲名の「/」がパス区切りとして残っていた

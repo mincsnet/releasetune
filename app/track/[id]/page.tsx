@@ -11,6 +11,14 @@ interface Props {
 
 export const revalidate = 86400;
 
+// meta description 用に max 字以内へ縮める。途中に句点があればそこで切る
+function summarize(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const end = cut.lastIndexOf("。");
+  return end >= max / 3 ? cut.slice(0, end + 1) : cut.slice(0, max - 1) + "…";
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const result = await getTrackById(id);
@@ -21,8 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${track.title} — ${track.artist}`;
   // シェア時のカードに出るタイトルは、カード画像・シェア文と揃えて「 - Single」を外す
   const socialCardTitle = `${socialTitle(track.title)} — ${track.artist}`;
-  const description = track.note
-    ? track.note.slice(0, 120)
+  const noteText = track.noteLong || track.note;
+  const description = noteText
+    ? summarize(noteText, 120)
     : `${formatDateJa(track.releaseDate)}リリース${years > 0 ? `（${years}年前）` : ""}。${track.artist}の楽曲「${track.title}」。`;
 
   // カード画像は同じフォルダの opengraph-image.tsx が生成し、og:image と twitter:image の両方に自動で出力される

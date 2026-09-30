@@ -5,7 +5,9 @@ export interface Track {
   artist: string;
   releaseDate: string; // "YYYY-MM-DD"
   jacket?: string;
-  note?: string;
+  note?: string;       // 短文（カード・注目曲）
+  noteLong?: string;   // 長文（楽曲詳細）。一覧系のクエリでは取得しない
+  noteSource?: { title: string; url: string }; // 紹介文の出典（Wikipediaの記事）
   links?: {
     spotify?: string;
     apple?: string;

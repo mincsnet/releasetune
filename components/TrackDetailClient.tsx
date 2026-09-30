@@ -70,10 +70,18 @@ export function TrackDetailClient({ track, mmdd, month, day, siblings }: Props) 
             </div>
           </div>
 
-          {/* 解説 */}
-          {track.note && (
+          {/* 解説（楽曲詳細では長文を優先。出典がある場合はWikipediaの記事へのリンクを添える） */}
+          {(track.noteLong || track.note) && (
             <div className={styles.note}>
-              <p className={styles.noteText}>{track.note}</p>
+              <p className={styles.noteText}>{track.noteLong || track.note}</p>
+              {track.noteSource && (
+                <p className={styles.noteSource}>
+                  出典:{" "}
+                  <a href={track.noteSource.url} target="_blank" rel="noopener noreferrer">
+                    Wikipedia「{track.noteSource.title}」
+                  </a>
+                </p>
+              )}
             </div>
           )}
 

@@ -12,6 +12,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// データ取得キャッシュ（unstable_cache）に付けるタグ。紹介文の公開などで tracks を書き換えたら、
+// /api/revalidate からこのタグを消して、期限（最大24時間）を待たずに表示へ反映する
+export const TRACKS_CACHE_TAG = "tracks";
+
+// 一覧系のクエリ（日付・アーティスト・検索）で取得する列。
+// 楽曲詳細でしか使わない長文（note_long）と出典は含めない（日付ページは1回に最大約90曲を取得するため、
+// 長文を含めるとSupabaseの転送量が増える）
+const LIST_COLUMNS =
+  "id,title,artist,release_date,mmdd,jacket,note,spotify,apple,amazon,youtube,youtube_id,youtube_verified";
+
 // ── DB行 → Track 型変換 ───────────────────────────────────────
 
 function rowToTrack(row: Record<string, unknown>): Track {
@@ -22,6 +32,10 @@ function rowToTrack(row: Record<string, unknown>): Track {
     releaseDate: String(row.release_date || ""),
     jacket:      (row.jacket as string) || undefined,
     note:        (row.note as string) || undefined,
+    noteLong:    (row.note_long as string) || undefined,
+    noteSource:  row.note_source_url
+      ? { title: String(row.note_source_title || ""), url: String(row.note_source_url) }
+      : undefined,
     links: {
       spotify:         (row.spotify as string) || undefined,
       apple:           (row.apple as string) || undefined,
@@ -40,7 +54,7 @@ export const getTracksByMmdd = cache(
     async (mmdd: string): Promise<Track[]> => {
       const { data, error } = await supabase
         .from("tracks")
-        .select("*")
+        .select(LIST_COLUMNS)
         .eq("mmdd", mmdd)
         .order("release_date", { ascending: false });
 
@@ -51,7 +65,7 @@ export const getTracksByMmdd = cache(
       return (data ?? []).map(rowToTrack);
     },
     ["tracks-by-mmdd"],
-    { revalidate: 3600 }
+    { revalidate: 3600, tags: [TRACKS_CACHE_TAG] }
   )
 );
 
@@ -68,7 +82,7 @@ export const getTrackById = cache(
       return { track: rowToTrack(data), mmdd: String(data.mmdd) };
     },
     ["track-by-id"],
-    { revalidate: 86400 }
+    { revalidate: 86400, tags: [TRACKS_CACHE_TAG] }
   )
 );
 
@@ -86,7 +100,7 @@ export const getArtistByName = cache(
     async (name: string): Promise<ArtistSummary | null> => {
       const { data, error } = await supabase
         .from("tracks")
-        .select("*")
+        .select(LIST_COLUMNS)
         .ilike("artist", name)
         .order("release_date", { ascending: false });
 
@@ -107,7 +121,7 @@ export const getArtistByName = cache(
       };
     },
     ["artist-by-name"],
-    { revalidate: 86400 }
+    { revalidate: 86400, tags: [TRACKS_CACHE_TAG] }
   )
 );
 
@@ -123,7 +137,7 @@ export const getAllArtistNames = cache(
       return Array.from(set).sort();
     },
     ["all-artist-names"],
-    { revalidate: 86400 }
+    { revalidate: 86400, tags: [TRACKS_CACHE_TAG] }
   )
 );
 
@@ -142,7 +156,7 @@ export const searchTracks = cache(
 
       const { data, error } = await supabase
         .from("tracks")
-        .select("*")
+        .select(LIST_COLUMNS)
         .or(`title.ilike.%${q}%,artist.ilike.%${q}%`)
         .order("release_date", { ascending: false })
         .limit(limit);
@@ -158,7 +172,7 @@ export const searchTracks = cache(
       }));
     },
     ["search-tracks"],
-    { revalidate: 3600 }
+    { revalidate: 3600, tags: [TRACKS_CACHE_TAG] }
   )
 );
 

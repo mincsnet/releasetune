@@ -83,6 +83,18 @@
   opacity: 0.9;
 }
 
+.noteSource {
+  margin-top: 10px;
+  font-size: 0.72rem;
+  color: var(--text-mute);
+}
+
+.noteSource a {
+  color: var(--text-sec);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .section {
   margin-bottom: 24px;
 }

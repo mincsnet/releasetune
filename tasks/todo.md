@@ -131,7 +131,14 @@
   - **ハマりどころ**: Amazon Musicの検索URLは検索語に「/」があると、そのままではトップページへ、`%2F`では404になる。空白に置き換えると正しく検索できる。反映時は検索語の「/」を空白にした
 - [ ] `changed`の24件（`data/titles/proposals.csv`に残っている）: DBの曲名がAppleの今の英語名とも違う。多くは「- Single」の付け外しや大文字化で無害だが、BOBBY SHANN「Cruel Angel (feat. Yoko Takahashi) - Single」→「Call From The Sky - Single」のようにApple側で作品が差し替わったとみられるものがある。直すなら1件ずつ確認して`apply --kinds changed --ids ...`
 - [ ] 後続: 紹介文の収集（`scripts/notes/collect.py`）で曲名がローマ字のため照合できなかった曲（氷川きよし等）を照合し直す
-- [ ] 別件: 曲名を変えていない行にも、検索語に「/」をそのまま含むAmazon検索URLが1,255件、Spotify検索URLが1,141件残っている（以前からの不具合。上のハマりどころ参照）
+- [x] 別件: 曲名を変えていない行にも、検索語に「/」をそのまま含むAmazon検索URLが1,255件、Spotify検索URLが1,141件残っていた（以前からの不具合。上のハマりどころ参照）→ 2026-09-30に修正
+  - **原因**: 過去の収集スクリプト（`collect_itunes.py`・`collect_all.py`・`collect.py`・`add_spotify.py`）が`requests.utils.quote`（`safe='/'`が既定）で検索語をエンコードしたため、アーティスト名・曲名の「/」がパス区切りとして残っていた
+  - **ブラウザでの確認**: Spotifyも「/」のままだと「エラーが発生したようです」になる（2曲で再現）。`%2F`と空白はどちらも正しく検索できる。Amazonと同じく空白に置き換えた。YouTubeは検索語がクエリ文字列なので「/」のままで検索でき、対象外（1,255件そのまま）
+  - **方式**: `scripts/titles/fix_search_slash.py`（`apply --dry-run` / `apply --ids` / `apply` / `revert`）。検索語をunquote→「/」を空白→空白を1つにまとめる→`quote(safe="")`。`revert`は反映後に値が変わっていない列だけ戻す（spotify-backfill cronが直リンクに置き換えた列は戻さない）
+  - 試験5件（湘南乃風・EXILE / EXILE THE SECOND・DISH//・なにわ男子「勇気100%」・谷村新司）→ ブラウザで検索できることと`revert`を確認 → 全件反映（1,255行、amazon 1,255件・spotify 1,141件）。反映後、PostgRESTの`like`で数えた件数が両列とも0、検索URLの総数（amazon 32,093・spotify 29,542）は変化なし。無作為の3曲（hitomi・DREAMS COME TRUE・Superfly）もAmazon・Spotifyで検索できることを確認
+  - 変更前の値: `data/titles/slash_fixed_20260930-134705.jsonl`（試験5件、`revert`済み）、`slash_fixed_20260930-134924.jsonl`（全件）
+  - **再発**: 新着cron（`new-releases`）は amazon/spotify/youtube を null で入れ、`spotify-backfill`は直リンクだけを書くので再発しない。ただし上の古い収集スクリプトは`safe='/'`のままなので、再実行すると再発する（使うなら`quote(..., safe="")`＋「/」を空白に直してから）
+  - メモ: Spotify検索URLのうち80件は検索語が半分だけエンコードされている（空白・日本語が生のまま。例:`Number_i%20GOAT - Single`）。ブラウザが自動でエンコードするので実害はなく、検索語が欠けるのは生の「?」を含む1件（欅坂46「誰がその鐘を鳴らすのか?」、末尾の「?」が落ちるだけ）のみ。未対応
 
 ## 進行中: SNS（X・Threads）でのシェアの見栄え改善（2026-09-30〜）
 

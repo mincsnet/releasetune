@@ -34,6 +34,13 @@ HEADERS = {
 }
 SLEEP = 1.2   # Discogs レートリミット対策
 
+
+def search_query(text: str) -> str:
+    """検索URL（Spotify・Amazon Music・YouTube）用に検索語をエンコードする。
+    「/」がパス区切りとして残ると Amazon Music・Spotify で検索できないため空白にする"""
+    return requests.utils.quote(" ".join(text.replace("/", " ").split()), safe="")
+
+
 # ── Discogs 検索 ──────────────────────────────────────────────
 def search_by_year(year: int, mmdd: str) -> list[dict]:
     """
@@ -200,9 +207,9 @@ def main():
                 apple_url  = itunes.get("trackViewUrl", "")
 
             # Spotify・YouTube・Amazon は検索URL（テストのため簡易版）
-            q = requests.utils.quote(f"{artist} {title}")
+            q = search_query(f"{artist} {title}")
             spotify_url = f"https://open.spotify.com/search/{q}"
-            youtube_url = f"https://www.youtube.com/results?search_query={requests.utils.quote(artist+' '+title+' 公式')}"
+            youtube_url = f"https://www.youtube.com/results?search_query={search_query(artist+' '+title+' 公式')}"
             amazon_url  = f"https://music.amazon.co.jp/search/{q}"
 
             track = {

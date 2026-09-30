@@ -42,6 +42,12 @@ YEAR_MAX = 2030
 TARGET_TYPES = {"Single", "Album", "EP"}
 
 
+def search_query(text: str) -> str:
+    """検索URL（Spotify・Amazon Music・YouTube）用に検索語をエンコードする。
+    「/」がパス区切りとして残ると Amazon Music・Spotify で検索できないため空白にする"""
+    return requests.utils.quote(" ".join(text.replace("/", " ").split()), safe="")
+
+
 # ════════════════════════════════════════════════════════════════
 # iTunes Search API
 # ════════════════════════════════════════════════════════════════
@@ -135,8 +141,8 @@ def parse_album(album: dict, fallback_artist: str) -> dict | None:
     apple_url = album.get("collectionViewUrl", "")
 
     # YouTube・Amazon は検索URL
-    q   = requests.utils.quote(f"{artist} {title}")
-    yt  = "https://www.youtube.com/results?search_query=" + requests.utils.quote(f"{artist} {title} 公式")
+    q   = search_query(f"{artist} {title}")
+    yt  = "https://www.youtube.com/results?search_query=" + search_query(f"{artist} {title} 公式")
     amz = "https://music.amazon.co.jp/search/" + q
     sp  = "https://open.spotify.com/search/" + q
 

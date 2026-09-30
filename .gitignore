@@ -10,3 +10,4 @@ data/tracks.json
 *.log
 tsconfig.tsbuildinfo
 spotify_backfill_cursor.txt
+data/titles/

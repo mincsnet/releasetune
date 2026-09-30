@@ -70,6 +70,25 @@
 - [ ] 反映確認: `lib/tracks.ts`の`unstable_cache`により、日付ページは最大1時間、楽曲・アーティストページは最大24時間は古いURLのまま表示される
 - **拡張子は`.jpg`に統一（2026-09-29 ユーザー判断）**: RSSのURLは`.png`だが、mzstaticは同じパスで`.jpg`も返す。既存の正常データ32,367件はすべて`.jpg`。600x600の実測ではPNGが平均約364KB、JPGが約72KB（約5倍）で、`Jacket`は`unoptimized`のため一覧のサムネイル（68〜88px）でもブラウザがこのファイルをそのまま読み込む
 
+## 進行中: 英語・ローマ字表記の曲名を日本語タイトルに修正（2026-09-30〜）
+
+例: 氷川きよし「Ojiichanchi E Ikou - Single」→「おじいちゃんちへいこう - Single」、スピッツ「Hachimitsu」→「ハチミツ」
+
+- **原因**: 過去の一括収集（`collect_itunes.py`）が iTunes Lookup API を `entity=album` で呼んでいた。アルバム側の名前は `lang=ja_jp` を指定しても英語・ローマ字で返る（APIの癖）。同じAPIでも `entity=song` の曲側の `collectionName` は日本版の表記で返る。毎日の新着cron（RSS）は日本版の表記で入るので、直すのは過去データのみ
+- **方式**: `scripts/titles/fix_ja_titles.py`。曲名に日本語を含まない約2.3万曲を iTunes Lookup（`entity=song`、100件ずつ）で照会し、日本版タイトルを取得。ボックスセットは曲側の名前がディスク単位になる（例: デヴィッド・ボウイ「Five Years 1969-1973」→「David Bowie (AKA Space Oddity)」）ため、曲側とアルバム側で収録曲数が違うときは Apple Music の oEmbed（ページの表示タイトル）で確かめる
+- 反映時は、保存済みの検索URL（Spotify・Amazon・YouTube列のうち直リンクでないもの）の検索語に含まれる旧曲名も置き換える。変更前の値は `data/titles/applied_*.jsonl` に残し、`revert` で戻せる
+
+- [x] 原因調査・スクリプト作成（`fetch` / `propose` / `apply --dry-run` / `apply` / `revert`）
+- [x] 全件取得（`fetch`、22,686曲）→ 候補一覧: 日本語化 6,625件 / 表記の違い 2,286件 / Apple側で名前が変わった 24件 / 同じ 13,521件 / Appleに作品なし 230件
+- [x] ユーザー確認（2026-09-30）: 海外アーティストの邦題（約15件、例: アラン・メンケン「Aladdin (Original Motion Picture Soundtrack)」→「アラジン (オリジナル・サウンドトラック)」）も揃える / 表記だけの違い（例: Mr.Children「Bolero」→「BOLERO」）も揃える。方針は「Apple Music日本版の表記に統一」
+- [x] 試験反映20件 → 開発サーバーで楽曲詳細・日付ページの表示とリンクを確認 → `revert`で戻せることも確認 → 全件反映（2026-09-30、計8,911件、検索URL 26,000件超も更新）。反映後に`propose`し直して日本語化・表記違いの残りが0件になったことを確認
+  - 変更前の値: `data/titles/applied_20260930-131529.jsonl`（試験20件）、`applied_20260930-131555.jsonl`（残り全件）。反映した候補一覧は`proposals_applied_20260930.csv`
+  - 本番サイトは`unstable_cache`（楽曲詳細等24時間・日付ページ1時間）のため、最大24時間で新しい曲名に切り替わる
+  - **ハマりどころ**: Amazon Musicの検索URLは検索語に「/」があると、そのままではトップページへ、`%2F`では404になる。空白に置き換えると正しく検索できる。反映時は検索語の「/」を空白にした
+- [ ] `changed`の24件（`data/titles/proposals.csv`に残っている）: DBの曲名がAppleの今の英語名とも違う。多くは「- Single」の付け外しや大文字化で無害だが、BOBBY SHANN「Cruel Angel (feat. Yoko Takahashi) - Single」→「Call From The Sky - Single」のようにApple側で作品が差し替わったとみられるものがある。直すなら1件ずつ確認して`apply --kinds changed --ids ...`
+- [ ] 後続: 紹介文の収集（`scripts/notes/collect.py`）で曲名がローマ字のため照合できなかった曲（氷川きよし等）を照合し直す
+- [ ] 別件: 曲名を変えていない行にも、検索語に「/」をそのまま含むAmazon検索URLが1,255件、Spotify検索URLが1,141件残っている（以前からの不具合。上のハマりどころ参照）
+
 ## 残タスク（優先順位順）
 
 ### 🔴 最優先

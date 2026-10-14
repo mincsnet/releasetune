@@ -17,7 +17,8 @@
         "-S",
         "127.0.0.1:8790",
         "-t",
-        "heteml/public"
+        "heteml/public",
+        "heteml/public/index.php"
       ],
       "port": 8790
     },

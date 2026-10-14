@@ -49,11 +49,15 @@
 - [ ] 切り替え（2026-10-14 21時台に実施、ユーザー指示「点検が終わったら切り替えて」。Spotify 点検は 17:09 に完了済み＝対象315行がすべて Supabase で検索URLに戻っていることを確認）
   1. [x] Supabase から最終の書き出し（`data/backup/supabase_20261014-211128.jsonl`）→ ヘテムルの今のデータ（20:48 取り込み）と比較して tracks は差分0。track_note_drafts は WAF 試験で書いた `waf-test` 行だけ多い（どこからも参照されず無害。SSH 復旧後に削除する）
      - この時 SSH が全く使えなくなった（認証は通るが、どのコマンドも出力なしで exit 254。Web の PHP は正常）。取り込み直しが不要だったので API での比較で代えた
-  2. Vercel 側の変更をまとめてコミット・push: `lib/tracks.ts`（取得先をヘテムルに）、`vercel.json`（cron しかないのでファイルごと削除）・`app/api/cron/*`・`lib/spotify.ts` の削除、`npm uninstall @supabase/supabase-js`、あわせて `heteml/`・`scripts/heteml/`・`scripts/notes/common.py` など
-  3. デプロイ後、本番のページがヘテムルのデータで表示されることを確認
-  4. ユーザー: ヘテムルのコントロールパネルで cron を2件登録（毎日 0:00 `/home/users/2/mincs/releasetune/heteml/cron/new_releases.php`、毎日 7:00 `.../spotify_backfill.php`）
-  5. 手元の `.env` に `DATA_BACKEND=heteml` と `HETEML_API_URL=https://mincs.heteml.net/releasetune`
-  6. 翌日、両 cron のログ（`~/releasetune/heteml/logs/`）と、新着がサイトに出ることを確認
+  2. [x] コミット・push（`2abaeda` 部品、`51baad9` 切り替え、`f3316b2` 記録）。HEAD 単体で `tsc`・`next build` 通過を確認してから push。21:15 にデプロイ完了
+  3. [x] 本番確認: 主要ページ 200（404 も期待どおり）、`/api/cron/*` は 404、本番の検索「50%」「恋」と10月14日のページの曲がヘテムルの API の結果と一致（＝本番がヘテムルを読んでいる）。SSH 復旧後に `waf-test` 行を削除し、最終書き出しと全行一致（差分0）。サーバーから Vercel のキャッシュ削除（`revalidate_site()`）も成功
+  4. [x] ユーザー: ヘテムルのコントロールパネルで cron を2件登録（2026-10-14、画面で確認: 「ReleaseTune 新着取得」`0 0 * * *` `/home/users/2/mincs/releasetune/heteml/cron/new_releases.php`、「ReleaseTune Spotify補完」`0 7 * * *` `.../spotify_backfill.php`）。同じアカウントに別プロジェクトの cron（水曜どうでしょう `0 5 * * *`）もある（上限20件）
+  5. [x] 手元の `.env` に `DATA_BACKEND=heteml` と `HETEML_API_URL=https://mincs.heteml.net/releasetune`（scripts/notes などはヘテムルを読み書きする）
+  6. [x] 翌日、両 cron のログ（`scripts/heteml/remote.sh 'tail ~/releasetune/heteml/logs/*.log'`）と、新着がサイトに出ることを確認（2026-10-15）
+     - 新着取得 0:00: 94件中23曲を追加、21曲に直リンク補完（Spotify 12・YouTube 21）、ジャケット全件600、22秒、キャッシュ削除成功。本番の楽曲ページに表示。Spotify 12件の中身を確認し11件は正しい。PassCode「Ray - EP」（2018）→「Ray [Re:]」（2026年の再録）は規則上は一致だが別の盤 → ユーザー判断でそのまま（2026-10-15）
+     - Spotify 補完 7:00: 200曲を処理して144件に直リンク（Vercel 時代は1日平均62件）、429 なし、103秒。無作為20件のリンク先を確認し、すべて同じ曲（アルバムはその収録曲、同じ曲の別の盤を含む）
+  - 注意: Supabase はもう書き込み先ではない。ルート直下の古いスクリプト（`migrate_to_supabase.py`・`backfill_jacket_600.py`・`add_spotify.py` など）は Supabase を直接書き換えるので使わない
+  - 戻し方（問題が出たら）: `git revert 51baad9` して push すれば、サイトは Supabase を読み、Vercel の cron も戻る（ただし切り替え後にヘテムルで増えたデータは Supabase にない）
 - [ ] 1週間様子見 → Supabase の最終バックアップを手元へ → ユーザーが Supabase を解約（CSP の `*.supabase.co` もこのとき外す）
 
 ### ⚠ 10/5 の Spotify 誤リンク修正が未コミット（2026-10-14 発見）
@@ -62,13 +66,28 @@
 - [ ] 10/5 以降に増えた直リンクを 10/5 と同じ方法（embed で曲名・アーティスト・発売日を照合）で監査（別セッションで実行中、2026-10-14〜）
 
 ### 第2段階: PHP 版サイト → Vercel 解約
-- [ ] 入口（`.htaccess`→`index.php`、URL は今と同じ）、セキュリティヘッダー
-- [ ] 各ページと部品の移植、メタ情報を同じ文面に、注目曲のハッシュは JS と同じ32ビット計算
-- [ ] CSS Modules → 接頭辞付きの普通の CSS、素の JS（カレンダー・ジャケット代替・シェア・GA4 イベント）
-- [ ] カード画像を GD で再現（URL は `/track/{id}/opengraph-image` のまま）
-- [ ] 手元の開発環境（`php -S`＋Homebrew MySQL 8.4）、`.claude/launch.json`
-- [ ] 試験公開（`new.releasetune.com` 等）で旧サイトと比較（URL・見た目・メタ情報・速度・GA）
-- [ ] DNS 切り替え（ユーザー）→ 1週間様子見 → ユーザーが Vercel を解約 → Next.js 一式を削除、`CLAUDE.md`・`README.md` 更新
+2026-10-15 に作成。手元とヘテムルの試験公開（`https://mincs.heteml.net/releasetune/`、noindex）で動作確認済み
+- [x] 入口 `heteml/public/index.php`（URL は Next.js 版と同じ。末尾の「/」は 308 で外す）、`.htaccess`（振り分け、セキュリティヘッダー、直下→www 307・http→https 308）
+- [x] 各ページ `heteml/src/pages.php`・共通部品 `heteml/src/site.php`（HTML の構造とクラス名を Next.js 版と同じにした）。サブフォルダでも動くよう URL は `u()` で作る
+- [x] CSS: Next.js 版の `globals.css`・各 CSS Module を接頭辞付きで機械的に `heteml/public/assets/site.css` へ（hd- ヘッダー / dp- 日付 / td- 楽曲 / ap- アーティスト / sp- 検索 / c- 共通）。素の JS は `heteml/public/assets/site.js`（カレンダー、ジャケット代替、シェア、検索フォーム、GA4 イベント）
+- [x] 配信サービスのアイコンは `<symbol>` で1回だけ定義（曲ごとに SVG を埋め込むと日付ページが 570KB になったため）。日付ページは本番 653KB → 324KB
+- [x] カード画像 `heteml/src/og_image.php`（GD。Google Fonts から使う文字だけのフォントを取得、行の高さはフォントの hhea から計算、`cache/og/` に1日保存）。URL は今と同じ `/track/{id}/opengraph-image`
+- [x] 「/」を含むアーティスト名（Apache が %2F を 404 にする）は `/artist?name=...` で表示し、サイト内のリンクもその形にした。**旧 URL（%2F 入り）は切り替え後 404 になる**（146曲分、避けられない）
+- 確認結果（2026-10-15）
+  - 見た目: 画面なしの Chrome で全要素の位置・大きさ・色・文字の設定を本番と比較（`scratchpad/vis/dump.mjs`）。375px・1440px でトップ・日付3・楽曲・アーティスト・検索2・プライバシー・404 が一致。違いは (1) 本番は「今日」を UTC で判定するので朝9時まで今日のページに「今日に戻る」が出る（PHP 版は JST で正しい）(2) 検索件数の表示が 1px（Next.js が文字を分けて描くため）(3) 特殊なラテン文字の行の高さ 1px
+  - 1月1日（1000曲）は画面の測定が重すぎたので HTML の曲の並びと曲名を比較して一致
+  - メタ情報: 15ページで title・description・OGP・twitter・canonical が一致。本番の `/search` と存在しない楽曲は Next.js がメタ情報を `<body>` に出していた（PHP 版は `<head>`）
+  - 動き: カレンダー（開閉・月送り・選択で移動）、前日・翌日、シェア文（通常・発売日当日）、検索フォーム、GA4 イベント、ジャケットの代替表示をブラウザで確認
+  - カード画像: 新宝島・長い曲名・長いアーティスト名・ジャケットなしで本番と見比べてほぼ同じ（ロゴの文字間が数 px 広い程度）
+  - ヘテムル上: 表示 0.1〜0.3 秒（本番 0.4〜2.6 秒）、カード画像は初回 1.7 秒・2回目からは保存済み
+- [ ] ユーザーに試験公開の見た目を確認してもらう
+- [ ] 切り替え（ユーザー確認のうえ、アクセスの少ない時間に）
+  1. ユーザー: ヘテムルの管理画面で独自ドメイン `releasetune.com`・`www.releasetune.com` を追加し、公開フォルダを `web/releasetune` にする
+  2. ユーザー: ムームードメインの DNS をヘテムルに向ける → 反映後すぐ、ヘテムルで無料 SSL（Let's Encrypt）を設定（DNS が向くまで発行できないので、数分〜1時間ほど https が警告になる）
+  3. 確認: 直下→www の転送、http→https、全ページ、カード画像、GA4
+  4. サーバーの `config.php` の `revalidate_url` を空に（Vercel がなくなるため）、`api/tracks.php` を削除
+  5. 1週間様子見 → ユーザーが Vercel を解約 → Next.js 一式を削除、`CLAUDE.md`・`README.md` 更新、ルート直下の `debut_artists.csv` は `heteml/data/` に一本化
+- [ ] 切り替え後: Search Console でエラーが増えていないか確認
 
 ## 完了済み（2026-08-05〜08 セッション）
 
@@ -257,6 +276,11 @@
 - [ ] **一括バックフィル完了後、こまめにVercel Usage / Supabase Egressを監視**
   - バックフィル自体がSupabase書き込み・API呼び出しを大量発生させるため、実行中〜直後はコスト面の急増がないか確認する
   - cronでのバックフィルはVercel Function実行時間（1日1回・最大60秒）が追加で発生する点も念のため確認
+
+- [ ] **EP盤・アルバムの Spotify 直リンクの扱いを決める**（2026-10-15 ユーザー指示「要検討」）
+  - 今の照合規則（曲名が一致し、アーティスト名か発売日が一致）では、DB が EP・アルバムでも「同じ名前の曲」や「収録曲」の直リンクが入る。再録版（PassCode「Ray - EP」2018 →「Ray [Re:]」2026）や、アルバム → 収録曲（谷村新司のベスト盤 → 「サクラサク」）など
+  - 選択肢の例: EP・アルバムは Spotify のアルバムページ（`open.spotify.com/album/`、検索の type=album）にリンクする / 発売年の一致も必須にする / 今のまま
+  - 10/5・10/14 の監査では「同じアーティスト・同じ発売日の収録曲」は許容としてきた
 
 ### 🟡 中優先（制約あり）
 

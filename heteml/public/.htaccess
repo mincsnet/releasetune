@@ -5,3 +5,34 @@ SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 <FilesMatch "^\.">
   Require all denied
 </FilesMatch>
+
+RewriteEngine On
+
+# ドメイン直下は www 付きへ、http は https へ転送する（Vercel での今の動きと同じ: 直下→www は 307、http→https は 308）。
+# canonical は直下（https://releasetune.com/...）を指しているので、どちらを正にするかは別途揃える（tasks/todo.md）
+RewriteCond %{HTTP_HOST} ^releasetune\.com$ [NC]
+RewriteRule ^ https://www.releasetune.com%{REQUEST_URI} [R=307,L]
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP_HOST} ^www\.releasetune\.com$ [NC]
+RewriteRule ^ https://www.releasetune.com%{REQUEST_URI} [R=308,L]
+
+# 実在するファイル（assets/・api/）以外の URL はすべて index.php で振り分ける（Next.js 版と同じ URL）
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L,QSA]
+
+# セキュリティヘッダー（Next.js 版の next.config.ts と同じ。Supabase は使わなくなったので connect-src から外した）
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.mzstatic.com https://i.scdn.co https://img.youtube.com https://www.googletagmanager.com; frame-src https://www.youtube.com; connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com"
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# CSS・JS はファイル名に更新日時を付けて読むので長くキャッシュしてよい
+<FilesMatch "\.(css|js)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </IfModule>
+</FilesMatch>

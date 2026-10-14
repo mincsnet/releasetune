@@ -1,8 +1,74 @@
 # ReleaseTune 開発タスク
 
-最終更新: 2026-09-28
+最終更新: 2026-10-14
 
 このファイルはプロジェクトの開発状況・残タスクの正本です。新しいチャットセッションでもこのファイルを読めば経緯と優先順位が分かるようにしています。作業を進めたら随時更新してください。
+
+## 進行中: Vercel・Supabase からヘテムルへの移行（2026-10-14〜）
+
+背景: Vercel Pro（月20ドル）と Supabase Pro（月25ドル）を払っている。収益が出るまでは契約済みのヘテムル1本にまとめて費用を抑える。計画の全文は `~/.claude/plans/magical-sniffing-owl.md`。
+
+**方針（ユーザー決定済み）**: サイトは PHP 版に作り替える（ヘテムルは Node.js 非対応で Next.js のサーバーが動かないため。React/Next.js はやめて PHP＋素の JavaScript）/ DB を先に移して Supabase を先に解約し、その後 PHP 版サイトで Vercel を解約する
+
+**調査で分かったこと**: ヘテムルは PHP 8.3〜8.5・MySQL 8.4 の共用サーバー。MySQL は外部から接続できない（公式FAQ）ので、手元のスクリプトと第1段階の Vercel は、ヘテムル上の PHP の API 経由で読み書きする。SSH はポート2222（root なし）、cron は最大20件（cron では rm・wget・find が使えない）。DB のデータは約31MB（tracks 33,378行・track_note_drafts 970行、2026-10-14 実測）
+
+### 第0段階: 下準備
+- [ ] ユーザー: ヘテムルで SSH を有効にして公開鍵を登録、MySQL のデータベースを作成、接続情報を設定ファイルに記入
+- [ ] SSH で確認: PHP 拡張（pdo_mysql・curl・mbstring・gd＋FreeType）と cron 用 PHP の場所、`.htaccess` の mod_rewrite・mod_headers、URL の `%2F`（「/」入りアーティスト146曲）が 404 にならないか、公開フォルダの向け先、cron から外部 HTTPS、WAF の誤検知
+
+### 第1段階: DB をヘテムルへ → Supabase 解約
+手元（Homebrew の MySQL 8.4＋`php -S`、`.claude/launch.json` の `heteml-php`）で作成・検証済み（2026-10-14）。ヘテムル上での動作確認はまだ
+- [x] `heteml/schema.sql`（照合は `utf8mb4_bin`、ilike 相当は `LOWER()` で明示。既定の照合だとひらがなとカタカナ・全角と半角が同一視される。アーティストページ用に小文字化した生成列 `artist_lc`）
+- [x] 移行: `scripts/heteml/migrate_from_supabase.py export`（Supabase 全行 → `data/backup/supabase_*.jsonl`、35MB）→ `php heteml/bin/import_snapshot.php <file>`（両テーブルを空にして入れ直す・1トランザクション・件数照合。手元で1.5秒）→ `... compare <file>`（API 経由で全行を列ごと・型まで比較）
+- [x] `heteml/src/tracks.php`（日付・ID・アーティスト・検索。日付とアーティストは今と同じく最大1000件、検索の `%`・`_` はエスケープ、同じ発売日の並びは id 順で固定）
+- [x] `api/db.php`（スクリプト用 select/upsert/update、許可リスト・トークン認証、PostgREST 形式の条件は使っている書き方だけ）と `api/tracks.php`（第1段階の間だけ Vercel が使う、読み取り専用の別トークン）
+- [x] `scripts/notes/common.py`: `.env` の `DATA_BACKEND=heteml` で `sb_*` が API を使う（関数の形は同じ。既定は切り替えまで `supabase`）。`review_ops.articles()` の並びに `track_id` を追加（同じ記事の曲の並びが DB 任せだった）
+- [x] `backfill_spotify.py` も `DATA_BACKEND=heteml` で API を使うように（取得と更新の2か所。カーソル送りの取得結果が Supabase と同一、更新が反映されることを手元で確認）
+- [x] cron を PHP に移植（`heteml/cron/new_releases.php`・`spotify_backfill.php`、`--dry-run` あり。Spotify 照合規則は `lib/spotify.ts` と同じ。打ち切りは45秒→300秒（クォータを使い切れる長さ）。ログは `heteml/logs/` に月ごと、12か月で削除。二重起動防止）
+- [x] Vercel 側: `lib/tracks.ts` の取得先を API に（失敗時は例外にして、空の結果がキャッシュに残らないように）、未使用の `getAllArtistNames` を削除。**未コミット・未デプロイ**
+- [ ] Vercel 側の残り（切り替え時）: `vercel.json` の cron と `app/api/cron/*`・`lib/spotify.ts` を削除、`@supabase/supabase-js` を外す、Vercel の環境変数に `HETEML_API_URL`・`HETEML_READ_TOKEN`
+- 手元での検証結果（2026-10-14）
+  - データ: 全 33,378＋970 行を列ごと・型まで比較して差分0（真偽値と数値、`{}` と `[]` の取り違えも検出できることを確認）
+  - スクリプト: `export_pending.py`・`fix_search_slash.py apply --dry-run`・`review_ops` の読み取り系が新旧で同一出力。書き込み（upsert の部分上書き、in・NULL・真偽値の update）、`or`・`gt` 条件の件数が Supabase と一致
+  - サイト用 API: 372日付・200曲・100アーティスト（「/」入り・大文字小文字違いを含む）・30語の検索が Supabase と一致。違いは上限（1000件・50件）の境目で同じ発売日の曲のどれが入るかだけ（Supabase では決まっていなかった）
+  - サイト: 旧（Supabase）と新（API）の Next.js をビルドして23ページを比較し、同じ発売日の並びを揃えると22ページが一致。残り1つは `/search?q=50%`（旧は % をワイルドカード扱い、新は文字として検索。意図した変更）。カード画像もバイト単位で一致
+  - ハマりどころ: Supabase は文字列を辞書順（en_US）で並べる（Fantasista → FEARS）。`utf8mb4_bin` のままだと文字コード順になるので、`api/db.php` の order では `utf8mb4_0900_ai_ci` で並べる
+  - cron: Spotify 照合の規則テスト（10/5 の誤リンク事例を含む7件）、`new_releases` を手元 DB に本実行して16曲追加・2回目は0曲・ジャケット 600x600、`spotify_backfill --dry-run --limit=3` で見つけた2件をリンク先の曲名・アーティスト・発売日まで確認
+- [x] ヘテムルに配置して同じ検証（2026-10-14）
+  - サーバー: SSH は `ssh heteml`（`~/.ssh/config`、鍵 `~/.ssh/heteml_releasetune`、ユーザー mincs、users229）。コードは `~/releasetune/heteml/`、公開フォルダは `~/web/releasetune` → `~/releasetune/heteml/public` のシンボリックリンク。第1段階の API は `https://mincs.heteml.net/releasetune/api/*.php`。DB は `mysql402.phy.heteml.lan` の `_releasetune`（MySQL 8.4.8）。`config.php` は `make_config.py` でユーザーが作成済み（600）
+  - 反映は `scripts/heteml/deploy.sh`（rsync。config.php・logs/・cache/ は送らない。cron ファイルを 700 に）。サーバーでのコマンドは `scripts/heteml/remote.sh '...'`
+  - 環境: `php` コマンドはなく `/usr/local/bin/php8.3`（Web の Apache も 8.3.35）。8.3〜8.5 とも pdo_mysql・intl・gd（FreeType）・imagick・curl あり。git 1.8.3・Python 3.7・mysql クライアント 5.6 と古い。時刻は JST。外部 HTTPS（iTunes・Spotify・YouTube・GitHub）可
+  - **ハマりどころ**: ヘテムルの SSH はまれに（6回に1回ほど）PHP とホームが見えない状態でつながる → `remote.sh`・`deploy.sh` は見えなければつなぎ直す
+  - **ハマりどころ**: WAF（SiteGuard）が `<script>`・`UNION SELECT`・`../` を含むリクエストを 403 にする → `public/api/.htaccess` の `SiteGuard_User_ExcludeSig all` で api/ だけ対象外（トークン認証・プレースホルダ・許可リストで守っている）。4,100文字の怪しく見える本文の書き込みと読み戻しを確認
+  - **第2段階への申し送り**: URL に `%2F` を含むと Apache が 404 を返す（`.htaccess` では変えられない）。「/」入りのアーティスト（146曲）は別の形の URL が必要。日本語のパスは問題なし。mod_rewrite・mod_headers・Authorization ヘッダーは使える
+  - 検証: 取り込み4秒、全行の列ごと比較で差分0、認証の拒否（405/401/400）、サイト用 API の比較が手元と同じ結果（違いは上限の境目のみ）、notes・titles スクリプトの出力が Supabase と同一、cron 2本の試運転（ファイルを直接実行する形でも）、Spotify 補完が見つけたリンクの中身を確認
+  - 注意: 1回目の比較では178日付で `spotify` 列だけ違った。別セッションの Spotify 誤リンク点検が、書き出しの後に Supabase で誤リンクを検索URLに戻したため。書き出し直して一致を確認。**切り替えは点検が終わってから**（点検は Supabase に書き込む）
+- [x] ユーザー: Vercel の環境変数に `HETEML_API_URL`（`https://mincs.heteml.net/releasetune`）と `HETEML_READ_TOKEN`（`.env` と同じ値）を Production と Preview に追加（2026-10-14）
+- [x] 切り替え時にコミットする状態を手元に用意（2026-10-14、未コミット）: `vercel.json`・`app/api/cron/*`・`lib/spotify.ts` を削除、`@supabase/supabase-js` をアンインストール。Supabase の環境変数なしで `tsc`・`next build` 通過（`/api/revalidate` は残る）。本物のヘテムル API につないだビルドと Supabase 版で23ページを比較し、22ページ一致（残りは意図した `/search?q=50%`）
+  - メモ: 手元の `npx tsc` は、古い `.next/types` が消した cron を参照してエラーになる（`.next` を消すかビルドし直せば消える。実害なし）
+- [ ] 切り替え（2026-10-14 21時台に実施、ユーザー指示「点検が終わったら切り替えて」。Spotify 点検は 17:09 に完了済み＝対象315行がすべて Supabase で検索URLに戻っていることを確認）
+  1. [x] Supabase から最終の書き出し（`data/backup/supabase_20261014-211128.jsonl`）→ ヘテムルの今のデータ（20:48 取り込み）と比較して tracks は差分0。track_note_drafts は WAF 試験で書いた `waf-test` 行だけ多い（どこからも参照されず無害。SSH 復旧後に削除する）
+     - この時 SSH が全く使えなくなった（認証は通るが、どのコマンドも出力なしで exit 254。Web の PHP は正常）。取り込み直しが不要だったので API での比較で代えた
+  2. Vercel 側の変更をまとめてコミット・push: `lib/tracks.ts`（取得先をヘテムルに）、`vercel.json`（cron しかないのでファイルごと削除）・`app/api/cron/*`・`lib/spotify.ts` の削除、`npm uninstall @supabase/supabase-js`、あわせて `heteml/`・`scripts/heteml/`・`scripts/notes/common.py` など
+  3. デプロイ後、本番のページがヘテムルのデータで表示されることを確認
+  4. ユーザー: ヘテムルのコントロールパネルで cron を2件登録（毎日 0:00 `/home/users/2/mincs/releasetune/heteml/cron/new_releases.php`、毎日 7:00 `.../spotify_backfill.php`）
+  5. 手元の `.env` に `DATA_BACKEND=heteml` と `HETEML_API_URL=https://mincs.heteml.net/releasetune`
+  6. 翌日、両 cron のログ（`~/releasetune/heteml/logs/`）と、新着がサイトに出ることを確認
+- [ ] 1週間様子見 → Supabase の最終バックアップを手元へ → ユーザーが Supabase を解約（CSP の `*.supabase.co` もこのとき外す）
+
+### ⚠ 10/5 の Spotify 誤リンク修正が未コミット（2026-10-14 発見）
+- `lib/spotify.ts`・`app/api/cron/*/route.ts`・`backfill_spotify.py`・`fetch_youtube.py` の修正（下の「2026-10-05 誤った直リンクの一括修正」）がコミットされておらず、本番の cron は今も古い照合（一致しなければ先頭の結果を採用）で動いている。直リンクは 10/5 修正後の約1,970件（3,200 − 誤り1,370 ＋ 再検索137 からの推定）から 2,325件（10/14 実測）に増えており、この約360件に誤リンクが混ざっている可能性が高い
+- [x] 修正をコミット・デプロイ（2026-10-14、ユーザー指示、`4943ab0`）。`lib/spotify.ts`・cron 2本・`backfill_spotify.py`・`tasks/lessons.md` のみ。コミット単体で `tsc`・`next build` 通過を確認してから push。Vercel のデプロイ成功（本番 `4943ab0`）、主要4ページの 200 を確認。次回の cron（JST 0:00 新着・7:00 補完）から新しい照合で動く。`fetch_youtube.py` の未コミットの変更（スクリプト用の YouTube キー `YOUTUBE_API_KEY_SCRIPTS`）は Spotify と無関係なので含めていない
+- [ ] 10/5 以降に増えた直リンクを 10/5 と同じ方法（embed で曲名・アーティスト・発売日を照合）で監査（別セッションで実行中、2026-10-14〜）
+
+### 第2段階: PHP 版サイト → Vercel 解約
+- [ ] 入口（`.htaccess`→`index.php`、URL は今と同じ）、セキュリティヘッダー
+- [ ] 各ページと部品の移植、メタ情報を同じ文面に、注目曲のハッシュは JS と同じ32ビット計算
+- [ ] CSS Modules → 接頭辞付きの普通の CSS、素の JS（カレンダー・ジャケット代替・シェア・GA4 イベント）
+- [ ] カード画像を GD で再現（URL は `/track/{id}/opengraph-image` のまま）
+- [ ] 手元の開発環境（`php -S`＋Homebrew MySQL 8.4）、`.claude/launch.json`
+- [ ] 試験公開（`new.releasetune.com` 等）で旧サイトと比較（URL・見た目・メタ情報・速度・GA）
+- [ ] DNS 切り替え（ユーザー）→ 1週間様子見 → ユーザーが Vercel を解約 → Next.js 一式を削除、`CLAUDE.md`・`README.md` 更新
 
 ## 完了済み（2026-08-05〜08 セッション）
 
@@ -101,7 +167,7 @@
   - 注意: DBのアーティスト名が同じでも別人の曲が混ざっている（例:「アリス」名義のイタリア語の曲）。曲名と発売日も一致しないと出典にしないので、誤った紹介文にはならない
 - [x] サイト表示の変更（2026-09-30、PC対応のコミット後に着手）: 楽曲詳細は長文を優先し「出典: Wikipedia「◯◯」」のリンクを表示。meta descriptionも長文優先で句点で区切る。一覧系クエリ（日付・アーティスト・検索）は`note_long`と出典を取得しない。`tsc`通過、開発サーバーで日付ページ・楽曲詳細の表示とエラーなしを確認
   - [x] 実データでの見た目の確認（2026-09-30）: Vaundy「忘れる前に」の楽曲詳細で長文（299字）と出典リンク、meta descriptionが句点で区切られること、日付ページのカードに短文のみが出て長文がページのデータに含まれないことを確認（スマホ幅）。`next build`通過
-  - [x] ユーザーレビュー → コミット・デプロイ（2026-09-30）
+  - [x] ユーザーレビュー → コミット・デプロイ（2026-09-30、`609b184`・`82894e0`）。本番で確認: `/api/revalidate`は認証なしで401、`revalidate_site()`で本番のキャッシュを消した直後に「新宝島」の楽曲詳細に長文・出典リンク・meta description、9月30日の日付ページに短文が表示され、日付ページのHTMLに長文は含まれない
 - [x] （2026-09-30）サカナクション「新宝島」（track 1043473928、DB上の曲名は「Shin Takara Jima - Single」）をユーザーの依頼で個別に作成・反映。曲名がローマ字のため自動照合できず、Wikipediaの「新宝島 (曲)」と手動で対応づけた（発売日2015-09-30で一致、`issues`に`manual_match`を記録）
 - [x] 反映した紹介文が本番に出るまでの遅れ（データ取得の`unstable_cache`が日付ページ1時間・楽曲詳細24時間）を解消（2026-09-30）: キャッシュにタグ`tracks`を付け、`/api/revalidate`（POST、`CRON_SECRET`のBearer認証）で消せるようにした。同期スクリプトとローカルのレビュー画面が承認の直後に呼ぶ。開発サーバーで認証（401/405）と、呼ぶと日付ページに公開直後の紹介文が出ることを確認
 - [x] （2026-09-30）初回の同期: ページの判断5件（浜崎あゆみ3記事、Vaundy「忘れる前に」、Mrs. GREEN APPLE『POPS』）を承認として本番に反映
@@ -181,6 +247,12 @@
     - **修正内容**: 固定件数の上限ではなく、**経過時間（45秒）で打ち切る方式に変更**。`SLEEP_MS`を120→80msに短縮。`FETCH_LIMIT`（Supabaseから取得する候補件数）は200に拡大。レスポンスに`elapsedMs`を追加し次回以降の実測がしやすいように
     - **副次的に発見した小さな非効率**: id昇順キューの先頭に恒久的にマッチしない曲（東方神起のライブ盤EPなど）が数件あり、毎日そこに再挑戦してクォータを少し消費している。影響は小さい（1日あたり数リクエスト程度）ため未対応。根本対応には`spotify`列だけでは「検索試行済みだが直リンクなし」を区別できないため、スキーマ変更（試行済みフラグ等の列追加）が必要
   - ローカルPythonスクリプト（`backfill_spotify.py`）は手動での追加実行・動作確認用に残置。使い方は`--dry-run --limit N`でまず確認してから本実行
+  - **2026-10-05 誤った直リンクの一括修正**（発端: 星野源「恋」がYU-KA「星月夜」にリンクしていた）
+    - **原因（3つ）**: (1) 曲名・アーティストが一致する結果がないと検索結果の先頭を採用していた (2) `Accept-Language`なしで検索していたためアーティスト名がローマ字（Gen Hoshino）で返り、DBの日本語名と一致しなかった (3) Apple Musicの作品名の「 - EP」「 - Single」が付いたまま検索すると結果が0件になる
+    - **監査**: 直リンク3,200行（2,813曲）を `open.spotify.com/embed/track/{id}`（`Accept-Language: ja`）で曲名・アーティスト・発売日を取得して照合（Web APIは一括取得が403、1件ずつはクォータ不足のため）。誤り1,370行（曲名・アーティスト・発売日すべて不一致723、曲名だけ一致で別アーティスト151、同アーティストの別の曲で発売日も違う496）。DBがアルバムで同じ発売日の収録曲にリンクしているものは許容として残した
+    - **修正**: 誤り1,370行を検索URLに戻した（元の値は`data/spotify/wrong_links_backup_2026-10-05.json`、git管理外）→ 新ロジックでクォータ上限まで再検索して137行に直リンク（無作為20件を目視で確認、すべて正しい曲）。残りは`spotify-backfill` cronが順次埋める
+    - **コード**: `lib/spotify.ts`の`searchSpotify`は「曲名が一致」かつ「アーティスト名か発売日が一致」のときだけ採用し、見つからなければ`null`。`Accept-Language: ja`、比較時は空白を無視（「星野 源」）、検索前に「 - EP」「 - Single」を除く。`spotify-backfill`は見つからない曲が先頭に溜まって進まなくなるのを避けるため、取得開始位置を毎回ランダムにずらす。`backfill_spotify.py`も同じロジックに揃えた
+    - 根本的には「試行済みだが直リンクなし」を記録する列を追加するのがきれい（スキーマ変更が必要なので未着手）
 
 - [ ] **一括バックフィル完了後、こまめにVercel Usage / Supabase Egressを監視**
   - バックフィル自体がSupabase書き込み・API呼び出しを大量発生させるため、実行中〜直後はコスト面の急増がないか確認する

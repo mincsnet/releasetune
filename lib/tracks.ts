@@ -1,26 +1,34 @@
-import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import type { Track } from "@/lib/utils";
 
 export type { Track } from "@/lib/utils";
 
-// ── Supabase クライアント ──────────────────────────────────────
+// ── データの取得先（ヘテムル） ─────────────────────────────────
+// データはヘテムルの MySQL にある。外部から直接つなげないため、ヘテムル上の読み取り専用 API
+// （heteml/public/api/tracks.php → heteml/src/tracks.php）から取得する。問い合わせの中身（取得する列、
+// 並び順、最大1000件など）は heteml/src/tracks.php にある。
+// 失敗したら例外にする（空の結果を返すと、それが unstable_cache に最大24時間残ってしまうため）
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+async function fetchTracks<T>(fn: "by_mmdd" | "by_id" | "by_artist" | "search", arg: string, limit?: number): Promise<T> {
+  const res = await fetch(`${process.env.HETEML_API_URL}/api/tracks.php`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.HETEML_READ_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fn, arg, limit }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`tracks API ${fn}(${arg}) failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+  return res.json();
+}
 
 // データ取得キャッシュ（unstable_cache）に付けるタグ。紹介文の公開などで tracks を書き換えたら、
 // /api/revalidate からこのタグを消して、期限（最大24時間）を待たずに表示へ反映する
 export const TRACKS_CACHE_TAG = "tracks";
-
-// 一覧系のクエリ（日付・アーティスト・検索）で取得する列。
-// 楽曲詳細でしか使わない長文（note_long）と出典は含めない（日付ページは1回に最大約90曲を取得するため、
-// 長文を含めるとSupabaseの転送量が増える）
-const LIST_COLUMNS =
-  "id,title,artist,release_date,mmdd,jacket,note,spotify,apple,amazon,youtube,youtube_id,youtube_verified";
 
 // ── DB行 → Track 型変換 ───────────────────────────────────────
 
@@ -52,17 +60,8 @@ function rowToTrack(row: Record<string, unknown>): Track {
 export const getTracksByMmdd = cache(
   unstable_cache(
     async (mmdd: string): Promise<Track[]> => {
-      const { data, error } = await supabase
-        .from("tracks")
-        .select(LIST_COLUMNS)
-        .eq("mmdd", mmdd)
-        .order("release_date", { ascending: false });
-
-      if (error) {
-        console.error("getTracksByMmdd error:", error);
-        return [];
-      }
-      return (data ?? []).map(rowToTrack);
+      const rows = await fetchTracks<Record<string, unknown>[]>("by_mmdd", mmdd);
+      return rows.map(rowToTrack);
     },
     ["tracks-by-mmdd"],
     { revalidate: 3600, tags: [TRACKS_CACHE_TAG] }
@@ -72,14 +71,9 @@ export const getTracksByMmdd = cache(
 export const getTrackById = cache(
   unstable_cache(
     async (id: string): Promise<{ track: Track; mmdd: string } | null> => {
-      const { data, error } = await supabase
-        .from("tracks")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error || !data) return null;
-      return { track: rowToTrack(data), mmdd: String(data.mmdd) };
+      const row = await fetchTracks<Record<string, unknown> | null>("by_id", id);
+      if (!row) return null;
+      return { track: rowToTrack(row), mmdd: String(row.mmdd) };
     },
     ["track-by-id"],
     { revalidate: 86400, tags: [TRACKS_CACHE_TAG] }
@@ -98,13 +92,8 @@ export interface ArtistSummary {
 export const getArtistByName = cache(
   unstable_cache(
     async (name: string): Promise<ArtistSummary | null> => {
-      const { data, error } = await supabase
-        .from("tracks")
-        .select(LIST_COLUMNS)
-        .ilike("artist", name)
-        .order("release_date", { ascending: false });
-
-      if (error || !data || data.length === 0) return null;
+      const data = await fetchTracks<Record<string, unknown>[]>("by_artist", name);
+      if (data.length === 0) return null;
 
       const tracks = data.map((row) => ({
         ...rowToTrack(row),
@@ -125,22 +114,6 @@ export const getArtistByName = cache(
   )
 );
 
-export const getAllArtistNames = cache(
-  unstable_cache(
-    async (): Promise<string[]> => {
-      const { data, error } = await supabase
-        .from("tracks")
-        .select("artist");
-
-      if (error || !data) return [];
-      const set = new Set(data.map((r) => r.artist as string));
-      return Array.from(set).sort();
-    },
-    ["all-artist-names"],
-    { revalidate: 86400, tags: [TRACKS_CACHE_TAG] }
-  )
-);
-
 // ── 自由検索 ──────────────────────────────────────────────────
 
 export interface SearchResult extends Track {
@@ -152,21 +125,9 @@ export const searchTracks = cache(
     async (query: string, limit = 50): Promise<SearchResult[]> => {
       if (!query.trim()) return [];
 
-      const q = query.trim();
+      const data = await fetchTracks<Record<string, unknown>[]>("search", query.trim(), limit);
 
-      const { data, error } = await supabase
-        .from("tracks")
-        .select(LIST_COLUMNS)
-        .or(`title.ilike.%${q}%,artist.ilike.%${q}%`)
-        .order("release_date", { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        console.error("searchTracks error:", error);
-        return [];
-      }
-
-      return (data ?? []).map((row) => ({
+      return data.map((row) => ({
         ...rowToTrack(row),
         mmdd: String(row.mmdd),
       }));

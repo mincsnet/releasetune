@@ -44,12 +44,25 @@ export async function GET(request: Request) {
   const limitParam = Number(searchParams.get("limit"));
   const fetchLimit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, FETCH_LIMIT) : FETCH_LIMIT;
 
+  // Spotifyで一致する曲が見つからない行は検索URLのまま対象に残り続ける。毎回id昇順の先頭から取ると
+  // そうした行だけで1回分の処理時間を使い切って先に進めなくなるため、開始位置を毎回ランダムにずらす。
+  const pendingFilter = "spotify.is.null,spotify.not.like.*open.spotify.com/track/*";
+  const { count: pendingCount, error: countError } = await supabase
+    .from("tracks")
+    .select("id", { count: "exact", head: true })
+    .or(pendingFilter);
+
+  if (countError) {
+    return NextResponse.json({ error: countError.message }, { status: 500 });
+  }
+
+  const offset = Math.floor(Math.random() * Math.max(0, (pendingCount ?? 0) - fetchLimit + 1));
   const { data: pending, error } = await supabase
     .from("tracks")
-    .select("id,title,artist")
-    .or("spotify.is.null,spotify.not.like.*open.spotify.com/track/*")
+    .select("id,title,artist,release_date")
+    .or(pendingFilter)
     .order("id", { ascending: true })
-    .limit(fetchLimit);
+    .range(offset, offset + fetchLimit - 1);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -68,7 +81,7 @@ export async function GET(request: Request) {
       break;
     }
 
-    const result = await searchSpotify(token, track.title, track.artist);
+    const result = await searchSpotify(token, track.title, track.artist, track.release_date);
 
     if (result.quotaExceededRetryAfter !== undefined) {
       quotaExceededRetryAfter = result.quotaExceededRetryAfter;
@@ -93,11 +106,13 @@ export async function GET(request: Request) {
   const message = quotaExceededRetryAfter !== null
     ? "Stopped: Spotify quota exceeded"
     : timeBudgetExceeded
-    ? "Stopped: time budget reached (resumes from the same query next run)"
+    ? "Stopped: time budget reached (next run starts from another random offset)"
     : "Batch complete";
 
   return NextResponse.json({
     message,
+    pending: pendingCount,
+    offset,
     fetched: (pending ?? []).length,
     processed,
     updated,

@@ -24,7 +24,7 @@ id昇順にカーソル方式でページングするため、中断しても --
     python3 backfill_spotify.py --reset
 """
 
-import os, sys, time, unicodedata, base64, signal
+import os, re, sys, time, unicodedata, base64, signal
 from pathlib import Path
 from argparse import ArgumentParser
 
@@ -68,7 +68,7 @@ def supabase_headers():
 
 def fetch_pending_page(cursor: str, page_size: int) -> list[dict]:
     params = {
-        "select": "id,title,artist",
+        "select": "id,title,artist,release_date",
         "order":  "id.asc",
         "limit":  str(page_size),
         "or":     PENDING_FILTER,
@@ -127,7 +127,8 @@ def get_spotify_token() -> str | None:
 
 
 def normalize(s: str) -> str:
-    return unicodedata.normalize("NFKC", s or "").lower().strip()
+    """lib/spotify.ts の normalize と同一（空白も除く。Spotifyの日本語表記は「星野 源」のように空白が入ることがある）"""
+    return "".join(unicodedata.normalize("NFKC", s or "").lower().split())
 
 
 def artist_match(sp_artists: list[dict], query_artist: str) -> bool:
@@ -155,7 +156,7 @@ def spotify_search_request(token: str, query: str, sleep_s: float) -> list[dict]
             resp = http_request(
                 "get",
                 "https://api.spotify.com/v1/search",
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"Authorization": f"Bearer {token}", "Accept-Language": "ja"},
                 params={"q": query, "type": "track", "market": "JP", "limit": "10"},
                 timeout=30,
             )
@@ -177,8 +178,21 @@ def spotify_search_request(token: str, query: str, sleep_s: float) -> list[dict]
     return None
 
 
-def search_spotify(token: str, title: str, artist: str, sleep_s: float) -> str | None:
-    """cron route.ts の searchSpotify と同一ロジック（最初にヒットしたクエリで確定）。"""
+def is_same_track(item: dict, title: str, artist: str, release_date: str | None) -> bool:
+    """lib/spotify.ts の isSameTrack と同一。曲名が近く、かつアーティスト名か発売日（日まで）が一致する"""
+    title_norm = normalize(title)
+    sp_title = normalize(item.get("name", ""))
+    if not sp_title or not (title_norm in sp_title or sp_title in title_norm):
+        return False
+    if artist_match(item.get("artists") or [], artist):
+        return True
+    return bool(release_date) and (item.get("album") or {}).get("release_date") == release_date
+
+
+def search_spotify(token: str, title: str, artist: str, release_date: str | None, sleep_s: float) -> str | None:
+    """lib/spotify.ts の searchSpotify と同一ロジック。一致する曲がなければ None（検索結果の先頭は採用しない）"""
+    # Apple Music の作品名に付く「 - Single」「 - EP」が残っていると Spotify の検索結果が0件になる
+    title = re.sub(r"\s+-\s+(Single|EP)$", "", title, flags=re.I)
     queries = [
         f'track:"{title}" artist:"{artist}"',
         f"track:{title} artist:{artist}",
@@ -192,16 +206,10 @@ def search_spotify(token: str, title: str, artist: str, sleep_s: float) -> str |
         if not items:
             continue
 
-        title_norm = normalize(title)
         for item in items:
-            sp_title = normalize(item.get("name", ""))
             sp_url = (item.get("external_urls") or {}).get("spotify")
-            if sp_url and (title_norm in sp_title or sp_title in title_norm) and artist_match(item.get("artists") or [], artist):
+            if sp_url and is_same_track(item, title, artist, release_date):
                 return sp_url
-
-        first_url = (items[0].get("external_urls") or {}).get("spotify")
-        if first_url:
-            return first_url
 
     return None
 
@@ -289,7 +297,7 @@ def main():
 
                 try:
                     token = get_spotify_token()  # 期限切れなら自動更新
-                    url = search_spotify(token, title, artist, args.sleep)
+                    url = search_spotify(token, title, artist, track.get("release_date"), args.sleep)
 
                     if url:
                         updated += 1

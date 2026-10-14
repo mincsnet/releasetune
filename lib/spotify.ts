@@ -34,8 +34,9 @@ export async function getSpotifyToken(): Promise<string | null> {
   }
 }
 
+// 空白も除く（Spotifyの日本語表記は「星野 源」のように姓名の間に空白が入ることがある）
 function normalize(s: string): string {
-  return s.normalize("NFKC").toLowerCase().trim();
+  return s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
 }
 
 function artistMatch(spotifyArtists: { name: string }[], queryArtist: string): boolean {
@@ -49,7 +50,19 @@ function artistMatch(spotifyArtists: { name: string }[], queryArtist: string): b
 interface SpotifyTrackItem {
   name: string;
   artists: { name: string }[];
+  album?: { release_date?: string };
   external_urls?: { spotify?: string };
+}
+
+// 曲名が近いだけでは別アーティストの同名曲を拾うため、アーティスト名か発売日のどちらかの一致を必須にする。
+// アーティスト名は Accept-Language: ja で日本語表記を受け取って比べるが、日本語表記が登録されていない
+// アーティストもいるため、発売日（Spotifyで日まで分かる場合 YYYY-MM-DD のみ）の一致でも同じ曲とみなす。
+function isSameTrack(item: SpotifyTrackItem, title: string, artist: string, releaseDate?: string): boolean {
+  const titleNorm = normalize(title);
+  const spTitle = normalize(item.name ?? "");
+  if (!spTitle || !(titleNorm.includes(spTitle) || spTitle.includes(titleNorm))) return false;
+  if (artistMatch(item.artists ?? [], artist)) return true;
+  return !!releaseDate && item.album?.release_date === releaseDate;
 }
 
 export interface SpotifySearchResult {
@@ -59,11 +72,16 @@ export interface SpotifySearchResult {
   quotaExceededRetryAfter?: number;
 }
 
+// 一致する曲が見つからなければ url: null を返す（検索結果の先頭を代わりに採用すると、
+// 無関係な曲の直リンクが入ってしまうため。呼び出し側は検索URLのままにしておく）。
 export async function searchSpotify(
   token: string,
   title: string,
-  artist: string
+  artist: string,
+  releaseDate?: string
 ): Promise<SpotifySearchResult> {
+  // Apple Music の作品名に付く「 - Single」「 - EP」が残っていると Spotify の検索結果が0件になる
+  title = title.replace(/\s+-\s+(Single|EP)$/i, "");
   const queries = [
     `track:"${title}" artist:"${artist}"`,
     `track:${title} artist:${artist}`,
@@ -78,7 +96,11 @@ export async function searchSpotify(
       url.searchParams.set("market", "JP");
       url.searchParams.set("limit", "10");
 
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      // Accept-Language を付けないとアーティスト名がローマ字表記（星野源 → Gen Hoshino）で返り、
+      // DB（Apple Musicの日本語表記）と一致しなくなる
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, "Accept-Language": "ja" },
+      });
 
       if (resp.status === 429) {
         const retryAfter = Number(resp.headers.get("Retry-After") ?? "5");
@@ -90,20 +112,10 @@ export async function searchSpotify(
       const items: SpotifyTrackItem[] = data?.tracks?.items ?? [];
       if (items.length === 0) continue;
 
-      const titleNorm = normalize(title);
-      for (const item of items) {
-        const spTitle = normalize(item.name ?? "");
-        const spUrl = item.external_urls?.spotify;
-        if (
-          spUrl &&
-          (titleNorm.includes(spTitle) || spTitle.includes(titleNorm)) &&
-          artistMatch(item.artists ?? [], artist)
-        ) {
-          return { url: spUrl };
-        }
-      }
-      const firstUrl = items[0]?.external_urls?.spotify;
-      if (firstUrl) return { url: firstUrl };
+      const match = items.find(
+        (item) => item.external_urls?.spotify && isSameTrack(item, title, artist, releaseDate)
+      );
+      if (match) return { url: match.external_urls!.spotify! };
     } catch {
       continue;
     }

@@ -139,7 +139,7 @@ export async function GET(request: Request) {
     const { data: inserted, error } = await supabase
       .from("tracks")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true })
-      .select("id, title, artist");
+      .select("id, title, artist, release_date");
 
     if (error) throw new Error(error.message);
 
@@ -155,7 +155,7 @@ export async function GET(request: Request) {
           const updates: Record<string, unknown> = {};
 
           if (spotifyToken) {
-            const spotifyResult = await searchSpotify(spotifyToken, row.title, row.artist);
+            const spotifyResult = await searchSpotify(spotifyToken, row.title, row.artist, row.release_date);
             if (spotifyResult.url) updates.spotify = spotifyResult.url;
           }
 

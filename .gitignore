@@ -12,3 +12,9 @@ tsconfig.tsbuildinfo
 spotify_backfill_cursor.txt
 data/notes/
 data/titles/
+data/spotify/
+# ヘテムル: サーバー上・手元だけに置くもの（秘密情報・ログ・キャッシュ・バックアップ）
+heteml/config.php
+heteml/logs/
+heteml/cache/
+data/backup/

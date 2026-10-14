@@ -42,7 +42,9 @@ def articles(filters: dict) -> list[dict]:
     """記事単位にまとめた下書き（tracks にジャケット等を付ける）"""
     rows = sb_select("track_note_drafts", {
         "select": "track_id,status,batch_id,wiki_title,wiki_url,source_text,note_short,note_long,facts,issues,review_required,reviewer_comment",
-        "order": "wiki_title.asc", **filters,
+        # track_id も並び順に入れる（同じ記事の曲の並び＝代表のジャケットが毎回変わらないように。
+        # 並びが一意でないと 1000 行ごとのページングで行が重複・欠落するおそれもある）
+        "order": "wiki_title.asc,track_id.asc", **filters,
     })
     tracks = {t["id"]: t for t in sb_select_in("tracks", "id", [r["track_id"] for r in rows],
                                                "id,title,artist,release_date,jacket")}

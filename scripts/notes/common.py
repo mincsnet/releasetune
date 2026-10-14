@@ -25,6 +25,12 @@ SERVICE_KEY  = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SITE_URL     = os.getenv("SITE_URL", "https://www.releasetune.com")
 CRON_SECRET  = os.getenv("CRON_SECRET", "")
 
+# データの置き場所。"supabase"（移行前）か "heteml"（ヘテムルの MySQL。外部から直接つなげないので
+# ヘテムル上の DB API（heteml/public/api/db.php）を経由する）。sb_* 関数はどちらでも同じ形で使える
+DATA_BACKEND    = os.getenv("DATA_BACKEND", "supabase")
+HETEML_API_URL  = os.getenv("HETEML_API_URL", "").rstrip("/")
+HETEML_DB_TOKEN = os.getenv("HETEML_DB_TOKEN", "")
+
 NOTES_DIR   = Path(__file__).resolve().parent
 DATA_DIR    = ROOT / "data" / "notes"
 ARTISTS_CSV = NOTES_DIR / "artists.csv"
@@ -76,16 +82,31 @@ def supabase_headers(prefer: str | None = None) -> dict:
     return h
 
 
+def heteml_db(payload: dict):
+    """ヘテムルの DB API を呼ぶ。payload は {"op": "select" | "upsert" | "update", "table": ..., ...}"""
+    if not HETEML_API_URL or not HETEML_DB_TOKEN:
+        raise RuntimeError(".env に HETEML_API_URL と HETEML_DB_TOKEN が必要です")
+    resp = http_request("post", f"{HETEML_API_URL}/api/db.php",
+                        headers={"Authorization": f"Bearer {HETEML_DB_TOKEN}", "Content-Type": "application/json"},
+                        json=payload, timeout=60)
+    if not resp.ok:
+        raise RuntimeError(f"ヘテムルの DB API が失敗: {resp.status_code} {resp.text[:300]}")
+    return resp.json()
+
+
 def sb_select(table: str, params: dict, page_size: int = 1000) -> list[dict]:
     """全件取得（limit/offset でページング）"""
     rows: list[dict] = []
     offset = 0
     while True:
         p = {**params, "limit": str(page_size), "offset": str(offset)}
-        resp = http_request("get", f"{SUPABASE_URL}/rest/v1/{table}",
-                            headers=supabase_headers(), params=p, timeout=60)
-        resp.raise_for_status()
-        page = resp.json()
+        if DATA_BACKEND == "heteml":
+            page = heteml_db({"op": "select", "table": table, "params": p})
+        else:
+            resp = http_request("get", f"{SUPABASE_URL}/rest/v1/{table}",
+                                headers=supabase_headers(), params=p, timeout=60)
+            resp.raise_for_status()
+            page = resp.json()
         rows.extend(page)
         if len(page) < page_size:
             return rows
@@ -106,6 +127,9 @@ def sb_select_in(table: str, column: str, values: list[str], select: str, chunk:
 
 def sb_upsert(table: str, rows: list[dict], on_conflict: str, chunk: int = 200) -> None:
     for i in range(0, len(rows), chunk):
+        if DATA_BACKEND == "heteml":
+            heteml_db({"op": "upsert", "table": table, "rows": rows[i:i + chunk], "on_conflict": on_conflict})
+            continue
         resp = http_request(
             "post", f"{SUPABASE_URL}/rest/v1/{table}",
             headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
@@ -117,6 +141,9 @@ def sb_upsert(table: str, rows: list[dict], on_conflict: str, chunk: int = 200) 
 
 
 def sb_update(table: str, filters: dict, patch: dict) -> None:
+    if DATA_BACKEND == "heteml":
+        heteml_db({"op": "update", "table": table, "filters": filters, "patch": patch})
+        return
     resp = http_request(
         "patch", f"{SUPABASE_URL}/rest/v1/{table}",
         headers=supabase_headers("return=minimal"),

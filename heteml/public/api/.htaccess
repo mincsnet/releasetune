@@ -1,0 +1,7 @@
+# api/ だけヘテムルの WAF（SiteGuard）の対象外にする。
+# 紹介文・出典テキストや検索語に「<script」「../」「UNION SELECT」のような文字列が含まれると、
+# 正当なリクエストでも 403 で遮断されるため（2026-10-14 にヘテムル上で確認）。
+# api/ はトークン（64桁）がないと何もせず 401 を返し、SQL はすべてプレースホルダ、テーブル名・列名は許可リストで確かめている。
+<IfModule siteguard_module>
+  SiteGuard_User_ExcludeSig all
+</IfModule>

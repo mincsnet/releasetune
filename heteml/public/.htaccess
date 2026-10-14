@@ -1,0 +1,7 @@
+# PHP の動かし方によっては Authorization ヘッダーが PHP に渡らないため、環境変数に移して渡す（src/api.php）
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+# ドットで始まるファイル（.htaccess など）は見せない
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>

@@ -4,13 +4,29 @@
     {
       "name": "releasetune-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "heteml-php",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "-S",
+        "127.0.0.1:8790",
+        "-t",
+        "heteml/public"
+      ],
+      "port": 8790
     },
     {
       "name": "notes-review",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["scripts/notes/review_server.py"],
+      "runtimeArgs": [
+        "scripts/notes/review_server.py"
+      ],
       "port": 8787
     }
   ]

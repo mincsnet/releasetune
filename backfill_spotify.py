@@ -33,6 +33,10 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
+# データの置き場所（.env の DATA_BACKEND。"heteml" ならヘテムルの DB API を使う）は scripts/notes/common.py と共通
+sys.path.insert(0, str(Path(__file__).parent / "scripts" / "notes"))
+from common import DATA_BACKEND, heteml_db  # noqa: E402
+
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
 SERVICE_KEY  = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SPOTIFY_ID     = os.getenv("SPOTIFY_CLIENT_ID", "")
@@ -75,6 +79,8 @@ def fetch_pending_page(cursor: str, page_size: int) -> list[dict]:
     }
     if cursor:
         params["id"] = f"gt.{cursor}"
+    if DATA_BACKEND == "heteml":
+        return heteml_db({"op": "select", "table": "tracks", "params": params})
     resp = http_request(
         "get",
         f"{SUPABASE_URL}/rest/v1/tracks",
@@ -87,6 +93,9 @@ def fetch_pending_page(cursor: str, page_size: int) -> list[dict]:
 
 
 def update_spotify(track_id: str, url: str) -> bool:
+    if DATA_BACKEND == "heteml":
+        return heteml_db({"op": "update", "table": "tracks", "filters": {"id": f"eq.{track_id}"},
+                          "patch": {"spotify": url}})["count"] == 1
     resp = http_request(
         "patch",
         f"{SUPABASE_URL}/rest/v1/tracks",
@@ -234,7 +243,7 @@ def main():
     parser.add_argument("--reset", action="store_true", help="カーソルをリセットして最初から処理する")
     args = parser.parse_args()
 
-    if not SUPABASE_URL or not SERVICE_KEY:
+    if DATA_BACKEND != "heteml" and (not SUPABASE_URL or not SERVICE_KEY):
         print("❌ NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY が未設定です")
         sys.exit(1)
     if not SPOTIFY_ID or not SPOTIFY_SECRET:

@@ -10,7 +10,7 @@ if [ -n "$(git status --porcelain -- heteml/)" ]; then
   echo "⚠ heteml/ にコミットしていない変更があります（そのまま反映します）:"
   git status --short -- heteml/ | sed 's/^/   /'
 fi
-opts=(-az --delete --exclude config.php --exclude logs/ --exclude cache/ -e "ssh -o BatchMode=yes")
+opts=(-az --delete --exclude config.php --exclude logs/ --exclude cache/ --exclude .DS_Store -e "ssh -o BatchMode=yes")
 [ "${1:-}" = "--dry-run" ] && opts+=(--dry-run --itemize-changes)
 # ヘテムルの SSH はまれにホームが見えない状態でつながるので、失敗したら数回つなぎ直す（remote.sh と同じ）
 for i in 1 2 3; do

@@ -10,11 +10,13 @@ RewriteEngine On
 
 # ドメイン直下は www 付きへ、http は https へ転送する（Vercel での今の動きと同じ: 直下→www は 307、http→https は 308）。
 # canonical は直下（https://releasetune.com/...）を指しているので、どちらを正にするかは別途揃える（tasks/todo.md）
-RewriteCond %{HTTP_HOST} ^releasetune\.com$ [NC]
-RewriteRule ^ https://www.releasetune.com%{REQUEST_URI} [R=307,L]
+# 2026-10-15: ヘテムルに www の SSL がまだないため、直下→www の転送を止めて直下でも表示している。
+# www の SSL を設定したら、下の2行の「#」を外して元に戻す
+#RewriteCond %{HTTP_HOST} ^releasetune\.com$ [NC]
+#RewriteRule ^ https://www.releasetune.com%{REQUEST_URI} [R=307,L]
 RewriteCond %{HTTPS} off
-RewriteCond %{HTTP_HOST} ^www\.releasetune\.com$ [NC]
-RewriteRule ^ https://www.releasetune.com%{REQUEST_URI} [R=308,L]
+RewriteCond %{HTTP_HOST} ^(www\.)?releasetune\.com$ [NC]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=308,L]
 
 # 実在するファイル（assets/・api/）以外の URL はすべて index.php で振り分ける（Next.js 版と同じ URL）
 RewriteCond %{REQUEST_FILENAME} !-f

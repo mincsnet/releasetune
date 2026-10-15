@@ -22,7 +22,7 @@ load_dotenv(ROOT / ".env")
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
 SERVICE_KEY  = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-SITE_URL     = os.getenv("SITE_URL", "https://www.releasetune.com")
+SITE_URL     = os.getenv("SITE_URL", "https://releasetune.com")
 CRON_SECRET  = os.getenv("CRON_SECRET", "")
 
 # データの置き場所。"supabase"（移行前）か "heteml"（ヘテムルの MySQL。外部から直接つなげないので
@@ -155,7 +155,10 @@ def sb_update(table: str, filters: dict, patch: dict) -> None:
 
 def revalidate_site() -> bool:
     """公開した紹介文がすぐ表示されるよう、本番サイトのデータ取得キャッシュを消す（/api/revalidate）。
-    失敗しても処理は止めない（キャッシュの期限切れ＝最大24時間で自然に反映される）"""
+    失敗しても処理は止めない（キャッシュの期限切れ＝最大24時間で自然に反映される）。
+    2026-10-15 にサイトが PHP 版（ヘテムル）になってからは、ページを毎回 DB から作るのでキャッシュがなく、何もしない"""
+    if DATA_BACKEND == "heteml":
+        return True
     if not CRON_SECRET:
         print("  ⚠ CRON_SECRET がないため、サイトのキャッシュを消せませんでした（最大24時間で反映されます）")
         return False

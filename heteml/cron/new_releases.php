@@ -40,6 +40,7 @@ cron_main('new_releases', function (array $args): array {
             'mmdd'         => substr($releaseDate, 5, 5),
             'jacket'       => $jacket,
             'apple'        => $e['link']['attributes']['href'],
+            'genre'        => $e['category']['attributes']['label'] ?? null,
         ];
     }
 
@@ -47,9 +48,9 @@ cron_main('new_releases', function (array $args): array {
     $pdo = db();
     $exists = $pdo->prepare('SELECT 1 FROM tracks WHERE id = ?');
     $insert = $pdo->prepare(
-        'INSERT INTO tracks (id, title, artist, release_date, mmdd, jacket, apple,
+        'INSERT INTO tracks (id, title, artist, release_date, mmdd, jacket, apple, genre,
                              spotify, amazon, youtube, youtube_id, youtube_verified, note, note_verified)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, NULL, 0)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, NULL, 0)
          ON DUPLICATE KEY UPDATE id = id'
     );
     $newRows = [];
@@ -98,7 +99,7 @@ cron_main('new_releases', function (array $args): array {
         'fetched'     => count($entries),
         'added'       => count($newRows),
         'enriched'    => $enriched,
-        'sample'      => array_map(fn($r) => "{$r['artist']} | {$r['title']}", array_slice($newRows, 0, 3)),
+        'sample'      => array_map(fn($r) => "{$r['artist']} | {$r['title']} | {$r['genre']}", array_slice($newRows, 0, 3)),
         'revalidated' => $newRows && !$dryRun ? revalidate_site() : false,
     ];
 });

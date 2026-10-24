@@ -4,6 +4,26 @@
 
 このファイルはプロジェクトの開発状況・残タスクの正本です。新しいチャットセッションでもこのファイルを読めば経緯と優先順位が分かるようにしています。作業を進めたら随時更新してください。
 
+## 進行中: tracks に genre 列を追加（2026-10-24〜）
+
+目的: iTunes のジャンル名（アルバム単位、例「J-Pop」「ロック」）を DB に持つ。今回はデータまで。サイトへの表示・絞り込みは別タスク。計画の全文は `~/.claude/plans/joyful-bouncing-boole.md`
+
+**調べて分かったこと（2026-10-24）**: 新着 RSS の `category.attributes.label` と Lookup API の `primaryGenreName` は、RSS の87曲すべてで同じ名前（Lookup のアルバムにジャンル ID はないので名前だけ持つ）。既存の曲は `id` が Apple URL のアルバム ID と一致する（1件だけ違う: 欅坂46 id 16090396 → URL の ID 1526094901）ので、Lookup は URL のアルバム ID で引く。無作為200曲で197件ヒット（約98.5%）。**DB に列がないまま `TABLES` に genre を足すと楽曲ページが壊れる**ので、本番は ALTER → 反映の順
+
+- [x] 手元の DB に列を追加（`ALTER TABLE tracks ADD COLUMN genre VARCHAR(64) NULL AFTER note_source_url`）
+- [x] `heteml/schema.sql`・`heteml/src/schema.php`（`TABLES` のみ。一覧用の `LIST_COLUMNS` には足さない）
+- [x] `heteml/cron/new_releases.php`: RSS のジャンルを INSERT に含める（既存の曲には触らない）。ログの sample にジャンルを添える
+- [x] 新規 `heteml/bin/backfill_genre.php`: `genre IS NULL` を id 順に200件ずつ Lookup。呼び出しの間は3秒。cron が入れた値は上書きしない。止まっても次の実行で続きから処理する。`--dry-run`・`--limit=N`
+- [x] 手元で検証（2026-10-24。設定は scratchpad の config.php で、ログの置き場所・Spotify と YouTube の補完・キャッシュ削除を止めて実行）
+  - cron: dry-run → 本実行で32曲を追加し、すべてにジャンル → 2回目は追加0
+  - 補完: dry-run 400件（397件ヒット）→ 本実行 400件 → 続きから再開 → 残り全件を本実行: **165回の呼び出しで10分51秒、エラー・制限なし、32,362件を更新、見つからない445件（1.3%、古い演歌の EP など配信終了とみられる盤）、ジャンルは112種類**（J-Pop 18,057・ロック 4,140・歌謡曲 1,892・ポップ 1,732・演歌 1,246 …）。欅坂46（id 16090396）も J-Pop
+  - 無作為20件を別に Lookup で照合し、20件すべてで同じアルバム・同じジャンル
+  - `heteml-php` でトップ・日付・楽曲（全列を読む `track_by_id`）・アーティスト・検索・カード画像が 200、存在しない曲は 404、PHP の警告なし。`api/db.php` の `select=*` と `select=genre` で genre が返る
+  - 手元の DB には genre 列とデータが入ったまま（開発用なのでそのままにする）
+- [ ] ユーザーの了承を得てコミット → 本番で ALTER → `deploy.sh` → ページ確認 → 補完を本実行（約11分）→ 集計と無作為20件の確認
+- [ ] 翌日の新着 cron のログで、ジャンルが入っていることを確認
+- 戻し方: revert → `deploy.sh` → `ALTER TABLE tracks DROP COLUMN genre`（この順。逆にすると楽曲ページが壊れる）
+
 ## 進行中: Vercel・Supabase からヘテムルへの移行（2026-10-14〜）
 
 背景: Vercel Pro（月20ドル）と Supabase Pro（月25ドル）を払っている。収益が出るまでは契約済みのヘテムル1本にまとめて費用を抑える。計画の全文は `~/.claude/plans/magical-sniffing-owl.md`。

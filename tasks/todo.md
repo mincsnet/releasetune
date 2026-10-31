@@ -41,7 +41,7 @@
 ### 進め方（指示書の Phase 順を基本に、上の事実で調整した案）
 1 Phase ＝ 1 コミット群（main へ）→ 手元の `heteml-php` で確認 → `deploy.sh` で本番 → 本番で受け入れ条件を確認、の順。各 Phase の最後に指示書の「報告フォーマット」で報告する
 
-**Phase 1: 入口の修理**（小）— 2026-10-31 実装・本番に反映済み（ユーザーの指示「Phase 1 に着手」「本番に反映」。前倒し案のラベル修正も含めた）。コミット `e2d62b0`（2026-10-31 に main へ取り込み済み。GitHub への push はまだ）
+**Phase 1: 入口の修理**（小）— 2026-10-31 実装・本番に反映済み（ユーザーの指示「Phase 1 に着手」「本番に反映」。前倒し案のラベル修正も含めた）。コミット `e2d62b0`（2026-10-31 に main へ取り込み、2026-11-01 に GitHub へ push 済み）
 - [x] T1-1 `src/sitemap.php`: `/robots.txt`（text/plain）・`/sitemap.xml`（索引）・`sitemap-dates.xml`（トップ＋366日）・`sitemap-artists.xml`（大文字小文字の表記違いはいちばん多い表記に1つ）・`sitemap-tracks-N.xml`（1万件ずつ、新しい順）。`<lastmod>` なし（更新日の列がない）。**楽曲は人気順ではなく新しい順**（人気の代わりの指標は Phase 2 のピックのスコアと一緒に入れる）
 - [x] T1-2 `/date/MM-DD/opengraph-image`（`og_image.php` の描画を楽曲・日付で共用に。左に注目曲のジャケット、右に「この日にリリースされた96曲」「10月31日」「アーティスト「曲名」」）。トップは今日の日付の画像を指す。og:image・twitter:image に width/height・type・alt
 - [x] T1-3 JSON-LD: 楽曲 `MusicRecording`＋`BreadcrumbList`（Release Tune › 10月31日 › 曲名）、日付・トップ `ItemList`（ページの並びの先頭10曲）、アーティスト `MusicGroup`＋`ItemList`（新しい順に100曲まで。画像はジャケットなので付けない）。曲名・アーティスト・発売日・ジャケット・URL だけを書く

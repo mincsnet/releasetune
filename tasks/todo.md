@@ -41,7 +41,7 @@
 ### 進め方（指示書の Phase 順を基本に、上の事実で調整した案）
 1 Phase ＝ 1 コミット群（main へ）→ 手元の `heteml-php` で確認 → `deploy.sh` で本番 → 本番で受け入れ条件を確認、の順。各 Phase の最後に指示書の「報告フォーマット」で報告する
 
-**Phase 1: 入口の修理**（小）— 2026-10-31 実装・手元で確認済み。**本番には未反映**（ユーザーの指示「Phase 1 に着手」。前倒し案のラベル修正も含めた）
+**Phase 1: 入口の修理**（小）— 2026-10-31 実装・本番に反映済み（ユーザーの指示「Phase 1 に着手」「本番に反映」。前倒し案のラベル修正も含めた）。コミット `e2d62b0`（ブランチ `claude/site-improvement-plan-7e574e`。**main にはまだ入っていない**ので、main から deploy.sh すると Phase 1 が消える）
 - [x] T1-1 `src/sitemap.php`: `/robots.txt`（text/plain）・`/sitemap.xml`（索引）・`sitemap-dates.xml`（トップ＋366日）・`sitemap-artists.xml`（大文字小文字の表記違いはいちばん多い表記に1つ）・`sitemap-tracks-N.xml`（1万件ずつ、新しい順）。`<lastmod>` なし（更新日の列がない）。**楽曲は人気順ではなく新しい順**（人気の代わりの指標は Phase 2 のピックのスコアと一緒に入れる）
 - [x] T1-2 `/date/MM-DD/opengraph-image`（`og_image.php` の描画を楽曲・日付で共用に。左に注目曲のジャケット、右に「この日にリリースされた96曲」「10月31日」「アーティスト「曲名」」）。トップは今日の日付の画像を指す。og:image・twitter:image に width/height・type・alt
 - [x] T1-3 JSON-LD: 楽曲 `MusicRecording`＋`BreadcrumbList`（Release Tune › 10月31日 › 曲名）、日付・トップ `ItemList`（ページの並びの先頭10曲）、アーティスト `MusicGroup`＋`ItemList`（新しい順に100曲まで。画像はジャケットなので付けない）。曲名・アーティスト・発売日・ジャケット・URL だけを書く
@@ -58,7 +58,15 @@
   - シェア文: JULEPS（デビュー）・Da-iCE「恋ごころ」（10周年）・ケツメイシ（当日・通常）・朝顔（当日以外）を実ページのボタンで確認。Threads は同じ文面でタグ1つ
   - GA: `click_streaming` に link_type、`follow_x` に page_type が付くことを確認。コンソールのエラー・PHP の警告なし。回帰確認の URL 一式（404 と末尾「/」の 308 を含む）
   - メモ: 手元で1回だけ Google Fonts の取得が失敗してカード画像が 500 になった（再実行で正常、壊れた画像は保存されない）。既存の作りのまま
-- [ ] 本番に反映（`deploy.sh`）→ 本番で受け入れ条件を確認 → Search Console に `https://releasetune.com/sitemap.xml` を送信（ユーザー）
+- [x] 本番に反映（2026-10-31）: `rsync -c --dry-run` でサーバーとの差が今回の8ファイルだけ（削除なし）であることを確認 → `deploy.sh` → サーバーの PHP 8.3 で構文チェック
+- [x] 本番で確認（2026-10-31）
+  - `robots.txt` 200 text/plain。`sitemap.xml` と子6ファイルが 200・`xmllint` で妥当（日付367・アーティスト3,866・楽曲 10,000×3＋3,552＝33,552件）、`sitemap-tracks-5.xml` は 404
+  - カード画像: `/date/10-31`・`02-29`・`10-15` と楽曲（朝顔）が 200・1200×630、`/date/13-01/opengraph-image` は 404
+  - トップ・10-31・02-29・10-15・朝顔・Mr.Children・米津玄師・DISH//（`?name=`）で canonical・og:image・JSON-LD・h1 が想定どおり。`/search?q=Mr.Children` だけ `noindex, follow`。404 3種は noindex、末尾「/」は 308。HTML はトップ 377,160・10-31 378,883（手元の確認と同じ増え方）
+  - スマホ（375×812）のトップ: 配信ボタンの下端 559px、横スクロールなし、GA 読み込み、コンソールのエラーなし
+  - **注意**: 確認中、手元の Mac から本番への要求がときどき応答なしで切れた（静的な `site.css` でも 8回中3回。要求は送れているが返事が来ない）。同じ時刻にサーバー上から同じ URL を取ると毎回 200（0.05〜0.14秒）、時間をおくと手元からも 200 になる。短時間に100件ほど続けて取得したので、ヘテムル側の接続制限か途中の回線が原因とみられ、今回の変更とは関係ない。Googlebot が sitemap を一気に読む場合に同じことが起きないか、Search Console の「クロールの統計情報」で様子を見る
+- [ ] ユーザー: Search Console に `https://releasetune.com/sitemap.xml` を送信
+- [ ] X の投稿画面にトップ・日付ページの URL を貼ってカード画像の表示を確認（ユーザー）
 - 気づいたこと（今回は触っていない）: `/date/02-30` などありえない日付が 200 の空ページになる（`is_valid_mmdd` が日を31まで許す）
 
 **Phase 2: 一覧の編集化**（中）

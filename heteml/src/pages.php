@@ -11,15 +11,6 @@ function page_wrap(string $content): string
 
 // ── 日付ページ（トップと /date/MM-DD） ───────────────────────
 
-function is_valid_mmdd(string $mmdd): bool
-{
-    if (!preg_match('/^\d{2}-\d{2}$/', $mmdd)) {
-        return false;
-    }
-    [$m, $d] = parse_mmdd($mmdd);
-    return $m >= 1 && $m <= 12 && $d >= 1 && $d <= 31;
-}
-
 // 前日・翌日（うるう年の 2024 年で数える。2月29日も前後に進める）
 function shift_mmdd(string $mmdd, int $delta): string
 {
@@ -29,8 +20,13 @@ function shift_mmdd(string $mmdd, int $delta): string
 function page_home(): void
 {
     $mmdd = today_mmdd();
+    $tracks = tracks_by_mmdd($mmdd);
+    $meta = basic_meta(SITE_TITLE, SITE_DESCRIPTION);
+    array_push($meta['tags'], ['link', 'canonical', SITE_ORIGIN . '/'], ['property', 'og:url', SITE_ORIGIN . '/'],
+        ...($tracks ? card_image_tags(SITE_ORIGIN . "/date/{$mmdd}/opengraph-image", '今日リリースされた楽曲') : []));
+    $meta['jsonld'] = date_jsonld($mmdd, $tracks);
     // トップはデビュー記念日を出さない（Next.js 版と同じ）
-    render_page(basic_meta(SITE_TITLE, SITE_DESCRIPTION), page_wrap(date_body($mmdd, tracks_by_mmdd($mmdd), $mmdd, [])));
+    render_page($meta, page_wrap(date_body($mmdd, $tracks, $mmdd, [], 'top')));
 }
 
 function page_date(string $mmdd): void
@@ -56,17 +52,34 @@ function page_date(string $mmdd): void
         ['name', 'twitter:card', 'summary_large_image'],
         ['name', 'twitter:title', $title],
         ['name', 'twitter:description', $description],
-    ]];
-    render_page($meta, page_wrap(date_body($mmdd, $tracks, today_mmdd(), debuts_by_mmdd($mmdd, $tracks))));
+        ...($tracks ? card_image_tags("{$url}/opengraph-image", "{$month}月{$day}日にリリースされた楽曲") : []),
+    ], 'jsonld' => date_jsonld($mmdd, $tracks)];
+    render_page($meta, page_wrap(date_body($mmdd, $tracks, today_mmdd(), debuts_by_mmdd($mmdd, $tracks), 'date')));
 }
 
-function date_body(string $mmdd, array $tracks, string $today, array $debuts): string
+// 日付ページの並び（注目曲が先頭、残りは発売日の新しい順）
+function date_order(string $mmdd, array $tracks): array
+{
+    $featured = featured_track($mmdd, $tracks);
+    return $featured ? [$featured, ...array_values(array_filter($tracks, fn($t) => $t['id'] !== $featured['id']))] : [];
+}
+
+// 構造化データは、ページに出ている順の先頭10曲
+function date_jsonld(string $mmdd, array $tracks): array
+{
+    [$month, $day] = parse_mmdd($mmdd);
+    return $tracks ? [ld_item_list("{$month}月{$day}日にリリースされた楽曲", array_slice(date_order($mmdd, $tracks), 0, 10))] : [];
+}
+
+// $pageType は GA のイベントで使う（'top' か 'date'）
+function date_body(string $mmdd, array $tracks, string $today, array $debuts, string $pageType): string
 {
     [$month, $day] = parse_mmdd($mmdd);
     [$pm, $pd] = parse_mmdd(shift_mmdd($mmdd, -1));
     [$nm, $nd] = parse_mmdd(shift_mmdd($mmdd, 1));
-    $featured = $tracks ? $tracks[featured_index($mmdd, count($tracks))] : null;
-    $others = array_values(array_filter($tracks, fn($t) => $t['id'] !== ($featured['id'] ?? null)));
+    $ordered = date_order($mmdd, $tracks);
+    $featured = $ordered[0] ?? null;
+    $others = array_slice($ordered, 1);
 
     // ナビゲーション（前日・翌日・カレンダー。カレンダーの中身は site.js が作る）
     $html = '<div class="dp-nav" data-cal-nav data-mmdd="' . h($mmdd) . '"><div class="dp-navRow">'
@@ -81,6 +94,18 @@ function date_body(string $mmdd, array $tracks, string $today, array $debuts): s
         $html .= '<div class="dp-backToday" data-cal-back><button class="dp-navBtn dp-navBtnAccent" data-href="' . h(u('/')) . '">今日に戻る</button></div>';
     }
     $html .= '</div>';
+
+    // サイトの説明と行き先（見出し・説明・ボタン。文言は site.php の HERO_COPY）
+    if ($featured) {
+        $date = "{$month}月{$day}日";
+        $isToday = $mmdd === $today;
+        $html .= '<div class="dp-intro"><h1 class="dp-introHeading">' . h(hero_copy('heading', $date)) . '</h1>'
+            . '<p class="dp-introLead">' . h(hero_copy($isToday ? 'lead_today' : 'lead_other', $date)) . '</p>'
+            . '<div class="dp-introCtas"><a class="dp-introCta dp-introCtaPrimary" href="#pick">' . h(hero_copy($isToday ? 'pick_today' : 'pick_other', $date)) . ' ↓</a>'
+            . '<a class="dp-introCta" href="' . X_URL . '" target="_blank" rel="noopener noreferrer"' . ga_attrs('follow_x', ['page_type' => $pageType]) . '>'
+            . '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="' . X_ICON_PATH . '"></path></svg>'
+            . h(hero_copy('follow', $date)) . '</a></div></div>';
+    }
 
     // デビュー記念日
     if ($debuts) {
@@ -99,8 +124,8 @@ function date_body(string $mmdd, array $tracks, string $today, array $debuts): s
     if ($featured) {
         $f = $featured;
         $years = years_ago($f['release_date']);
-        $html .= '<div class="dp-featured"><a class="dp-featuredJacket" href="' . h(u('/track/' . $f['id'])) . '"' . view_track_ga($f) . '>'
-            . jacket($f['jacket'], $f['title'], 68, true) . '</a><div>'
+        $html .= '<div class="dp-featured" id="pick"><a class="dp-featuredJacket" href="' . h(u('/track/' . $f['id'])) . '"' . view_track_ga($f) . '>'
+            . jacket($f['jacket'], $f['title'], 68, true, true) . '</a><div class="dp-featuredBody">'
             . '<div class="dp-featuredHead"><a class="dp-plainLink" href="' . h(u('/track/' . $f['id'])) . '"><h2 class="dp-featuredTitle">' . h($f['title']) . '</h2></a>'
             . '<div class="dp-featuredArtist">' . h($f['artist']) . '</div><div class="dp-featuredMeta"><span class="dp-featuredDate">' . format_date_ja($f['release_date']) . '</span>'
             . ($years > 0 ? '<span class="dp-yearsBadge">' . $years . '年前</span>' : '') . '</div></div>'
@@ -167,6 +192,12 @@ function debuts_by_mmdd(string $mmdd, array $tracks): array
     return array_values(array_filter(debut_db(), fn($d) => substr($d['debutDate'], 5) === $mmdd));
 }
 
+// デビュー記念日の一覧にある、そのアーティストのデビュー日に出た作品か（シェア文をデビュー用にする）
+function is_debut_track(array $t): bool
+{
+    return (debut_db()[$t['artist']]['debutDate'] ?? null) === $t['release_date'];
+}
+
 // ── 楽曲詳細 ────────────────────────────────────────────
 
 // meta description 用に max 字以内へ縮める。途中に句点があればそこで切る
@@ -202,25 +233,20 @@ function page_track(string $id): void
         ['property', 'og:title', $socialTitle],
         ['property', 'og:description', $description],
         ['property', 'og:url', $url],
-        ['property', 'og:image:alt', '楽曲のリリース情報'],
-        ['property', 'og:image:type', 'image/png'],
-        ['property', 'og:image', $image],
-        ['property', 'og:image:width', '1200'],
-        ['property', 'og:image:height', '630'],
         ['property', 'og:type', 'music.song'],
         ['name', 'twitter:card', 'summary_large_image'],
         ['name', 'twitter:title', $socialTitle],
         ['name', 'twitter:description', $description],
-        ['name', 'twitter:image:alt', '楽曲のリリース情報'],
-        ['name', 'twitter:image:type', 'image/png'],
-        ['name', 'twitter:image', $image],
-        ['name', 'twitter:image:width', '1200'],
-        ['name', 'twitter:image:height', '630'],
+        ...card_image_tags($image, '楽曲のリリース情報'),
+    ], 'jsonld' => [
+        ld_recording($t),
+        ld_breadcrumb([['Release Tune', SITE_ORIGIN . '/'], ["{$month}月{$day}日", SITE_ORIGIN . "/date/{$mmdd}"], [social_title($t['title']), $url]]),
     ]];
     $siblings = array_values(array_filter(tracks_by_mmdd($mmdd), fn($s) => $s['id'] !== $t['id']));
 
-    // シェア文は押した時点の日付で site.js が作る（リリース日の当日は周年を先頭に出す）
-    $share = ' data-share-id="' . h($t['id']) . '" data-share-title="' . h($t['title']) . '" data-share-artist="' . h($t['artist']) . '" data-share-date="' . h($t['release_date']) . '"';
+    // シェア文は押した時点の日付で site.js が作る（SHARE_TEMPLATES。リリース日の当日はデビュー・キリ周年・通常で出し分け）
+    $share = ' data-share-id="' . h($t['id']) . '" data-share-title="' . h($t['title']) . '" data-share-artist="' . h($t['artist']) . '" data-share-date="' . h($t['release_date']) . '"'
+        . (is_debut_track($t) ? ' data-share-debut="1"' : '');
     $html = '<div class="td-page"><a class="td-back" href="' . h(u("/date/{$mmdd}")) . '">← ' . "{$month}月{$day}日のリリース一覧" . '</a>'
         . '<div class="td-hero"><div class="td-jacket">' . jacket($t['jacket'], $t['title'], 68, true) . '</div><div>'
         . '<div class="td-head"><h1 class="td-title">' . h($t['title']) . '</h1>'
@@ -232,14 +258,14 @@ function page_track(string $id): void
             . (!empty($t['note_source_url']) ? '<p class="td-noteSource">出典: <a href="' . h($t['note_source_url']) . '" target="_blank" rel="noopener noreferrer">Wikipedia「' . h($t['note_source_title']) . '」</a></p>' : '')
             . '</div>';
     }
-    $html .= '<div class="td-section"><div class="td-sectionLabel">試聴・再生</div>' . svc_grid($t) . '</div>';
+    $html .= '<div class="td-section"><div class="td-sectionLabel">配信サービス</div>' . svc_grid($t) . '</div>';
     if (!empty($t['youtube_id']) && !empty($t['youtube_verified'])) {
         $html .= '<div class="td-section"><div class="td-mvLabel">MV / 公式動画</div><div class="td-mvFrame">'
             . '<iframe src="https://www.youtube.com/embed/' . h($t['youtube_id']) . '?rel=0" title="' . h($t['title'] . ' - ' . $t['artist']) . '"'
             . ' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="td-mvIframe"></iframe></div></div>';
     }
     $html .= '<div class="td-share"' . $share . '><div class="td-sectionLabel">シェア</div><div class="td-shareBtns">'
-        . '<button class="td-shareBtn" data-share="x"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.261 5.636 5.903-5.636zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>X でシェア</button>'
+        . '<button class="td-shareBtn" data-share="x"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="' . X_ICON_PATH . '"></path></svg>X でシェア</button>'
         . '<button class="td-shareBtn" data-share="threads"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.505-1.808-1.343-3.233-2.487-4.234-1.19-1.036-2.868-1.587-4.9-1.6-2.832.019-4.952.965-6.475 2.898-1.426 1.806-2.168 4.298-2.196 7.405.028 3.11.77 5.6 2.196 7.405 1.522 1.93 3.64 2.876 6.467 2.895 2.256-.028 3.9-.605 5.072-1.744 1.346-1.31 1.895-3.256 1.895-5.457 0-.144-.005-.287-.016-.43h-7.019v-2.016h9.115c.028.29.044.585.044.883 0 2.9-.74 5.406-2.41 7.03C17.42 23.278 15.127 24 12.186 24z"></path></svg>Threads でシェア</button>'
         . '</div></div></div></div>';
 
@@ -279,7 +305,12 @@ function page_artist(string $name): void
     }
     $title = page_title($name);
     $description = "{$name}のリリース楽曲一覧。{$count}曲を収録。";
-    $tags = [['name', 'description', $description], ['property', 'og:title', $title], ['property', 'og:description', $description]];
+    // 表記違い（大文字小文字）で同じページが複数の URL にならないよう、いちばん多い表記を正の URL にする（sitemap と同じ）
+    $spellings = array_count_values(array_column($tracks, 'artist'));
+    arsort($spellings);
+    $canonicalName = (string) array_key_first($spellings);
+    $url = SITE_ORIGIN . artist_path($canonicalName);
+    $tags = [['name', 'description', $description], ['link', 'canonical', $url], ['property', 'og:title', $title], ['property', 'og:description', $description], ['property', 'og:url', $url]];
     if ($jacketSrc) {
         $tags[] = ['property', 'og:image', $jacketSrc];
     }
@@ -313,7 +344,12 @@ function page_artist(string $name): void
         $prevYear = $year;
     }
     $html .= '</div></div></div>';
-    render_page(['title' => $title, 'tags' => $tags], page_wrap($html));
+    $jsonld = [
+        // 画像はジャケット（アーティストの写真ではない）なので付けない。一覧は大きくなりすぎないよう新しい順に100曲まで
+        ['@type' => 'MusicGroup', 'name' => $canonicalName, 'url' => $url],
+        ld_item_list("{$canonicalName}のリリース楽曲", array_slice($tracks, 0, 100)),
+    ];
+    render_page(['title' => $title, 'tags' => $tags, 'jsonld' => $jsonld], page_wrap($html));
 }
 
 // ── 検索 ────────────────────────────────────────────────
@@ -356,7 +392,8 @@ function page_search(string $query): void
             . '<div class="sp-placeholderHint">32,000曲以上のデータから検索できます</div></div>';
     }
     $html .= '</div>';
-    render_page(basic_meta(page_title('楽曲・アーティスト検索'), 'Release Tuneの楽曲・アーティストを検索できます。'), page_wrap($html));
+    // 検索結果のページは検索エンジンに載せない（リンクはたどってもらう）。入力欄だけのページは載せる
+    render_page(basic_meta(page_title('楽曲・アーティスト検索'), 'Release Tuneの楽曲・アーティストを検索できます。', $query !== '' ? 'noindex, follow' : null), page_wrap($html));
 }
 
 // ── 利用規約・プライバシーポリシー ───────────────────────────
@@ -414,5 +451,5 @@ function page_not_found(): void
         . '<h1 style="font-family:var(--font-display);font-size:1.4rem;color:var(--text-pri)">ページが見つかりません</h1>'
         . '<p style="font-size:0.84rem;color:var(--text-sec)">URLが正しいかご確認ください</p>'
         . '<a href="' . h(u('/date/' . today_mmdd())) . '" style="margin-top:8px;padding:8px 20px;border-radius:4px;border:1px solid var(--gold);color:var(--gold);text-decoration:none;font-size:0.84rem;font-weight:600">今日のリリースを見る</a></div>';
-    render_page(basic_meta(SITE_TITLE, SITE_DESCRIPTION, true), $html, 404);
+    render_page(basic_meta(SITE_TITLE, SITE_DESCRIPTION, 'noindex'), $html, 404);
 }

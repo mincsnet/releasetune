@@ -29,7 +29,13 @@ function encode_uri_component(string $s): string
 // （.htaccess では変えられない設定）ので、その名前だけクエリ文字列で渡す
 function artist_url(string $name): string
 {
-    return str_contains($name, '/') ? u('/artist?name=' . encode_uri_component($name)) : u('/artist/' . encode_uri_component($name));
+    return u(artist_path($name));
+}
+
+// 入口の置き場所を付けない形（sitemap・canonical など、本番の URL を組み立てるとき用）
+function artist_path(string $name): string
+{
+    return str_contains($name, '/') ? '/artist?name=' . encode_uri_component($name) : '/artist/' . encode_uri_component($name);
 }
 
 function today_mmdd(): string
@@ -59,6 +65,15 @@ function parse_mmdd(string $mmdd): array
     return [(int) $m, (int) $d];
 }
 
+function is_valid_mmdd(string $mmdd): bool
+{
+    if (!preg_match('/^\d{2}-\d{2}$/', $mmdd)) {
+        return false;
+    }
+    [$m, $d] = parse_mmdd($mmdd);
+    return $m >= 1 && $m <= 12 && $d >= 1 && $d <= 31;
+}
+
 // SNS（シェア文・カード画像）用の曲名。Apple Music が付ける末尾の「 - Single」は外す（「 - EP」は残す）
 function social_title(string $title): string
 {
@@ -81,10 +96,17 @@ function featured_index(string $mmdd, int $count): int
     return abs($hash) % $count;
 }
 
+// 日付ページの注目曲（ページ・カード画像・構造化データで同じ曲を使う）
+function featured_track(string $mmdd, array $tracks): ?array
+{
+    return $tracks ? $tracks[featured_index($mmdd, count($tracks))] : null;
+}
+
 // ── 部品 ──────────────────────────────────────────────
 
-// components/Jacket.tsx。画像を読めなければ ♪ の代替表示にする（site.js の rtJacketError）
-function jacket(?string $src, string $title, int $size = 68, bool $fullWidth = false): string
+// components/Jacket.tsx。画像を読めなければ ♪ の代替表示にする（site.js の rtJacketError）。
+// $eager は最初に見える画像（日付ページの注目曲など）用。遅延読み込みにせず先に取りに行く
+function jacket(?string $src, string $title, int $size = 68, bool $fullWidth = false, bool $eager = false): string
 {
     $box = "var(--jacket-size, {$size}px)";
     $container = $fullWidth
@@ -96,7 +118,7 @@ function jacket(?string $src, string $title, int $size = 68, bool $fullWidth = f
         return '<div style="' . h($fallback) . '">♪</div>';
     }
     return '<div style="' . h($container) . '" data-fallback-style="' . h($fallback) . '">'
-        . '<img alt="' . h($title) . '" loading="lazy" decoding="async" src="' . h($src) . '"'
+        . '<img alt="' . h($title) . '" ' . ($eager ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"') . ' src="' . h($src) . '"'
         . ' style="position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent"'
         . ' onerror="rtJacketError(this)"></div>';
 }
@@ -135,24 +157,35 @@ function icon(string $name, int $s): string
     return '<svg width="' . $s . '" height="' . $s . '" viewBox="0 0 24 24" fill="currentColor"><use href="#i-' . $name . '"></use></svg>';
 }
 
-// components/SvcLinks.tsx。YouTube Music は動画IDがあれば music.youtube.com の直リンクを優先する
+// components/SvcLinks.tsx。YouTube Music は動画IDがあれば music.youtube.com の直リンクを優先する。
+// 曲を特定できていないリンク（各サービスの検索結果）は search を true にし、「で聴く」ではなく「で探す」と表示する。
+// label は GA の service の値なので変えない。表示名（name）は遷移先に合わせる（YouTube の検索は YouTube Music ではない）
 function svc_items(array $t): array
 {
-    $yt = !empty($t['youtube_id']) ? 'https://music.youtube.com/watch?v=' . $t['youtube_id'] : ($t['youtube'] ?? null);
+    $isSearch = fn(string $href) => str_contains($href, '/search') || str_contains($href, 'search_query=');
+    $item = fn(string $href, string $color, string $icon, string $label, ?string $name = null) => [
+        'href' => $href, 'color' => $color, 'icon' => $icon, 'label' => $label, 'name' => $name ?? $label, 'search' => $isSearch($href),
+    ];
     return array_values(array_filter([
-        !empty($t['spotify']) ? ['href' => $t['spotify'], 'color' => '#1DB954', 'icon' => 'spotify', 'label' => 'Spotify'] : null,
-        !empty($t['apple']) ? ['href' => $t['apple'], 'color' => '#fc3c44', 'icon' => 'apple', 'label' => 'Apple Music'] : null,
-        !empty($t['amazon']) ? ['href' => $t['amazon'], 'color' => '#00A8E1', 'icon' => 'amazon', 'label' => 'Amazon Music'] : null,
-        $yt ? ['href' => $yt, 'color' => '#FF0000', 'icon' => 'youtube', 'label' => 'YouTube Music'] : null,
+        !empty($t['spotify']) ? $item($t['spotify'], '#1DB954', 'spotify', 'Spotify') : null,
+        !empty($t['apple']) ? $item($t['apple'], '#fc3c44', 'apple', 'Apple Music') : null,
+        !empty($t['amazon']) ? $item($t['amazon'], '#00A8E1', 'amazon', 'Amazon Music') : null,
+        !empty($t['youtube_id']) ? $item('https://music.youtube.com/watch?v=' . $t['youtube_id'], '#FF0000', 'youtube', 'YouTube Music')
+            : (!empty($t['youtube']) ? $item($t['youtube'], '#FF0000', 'youtube', 'YouTube Music', 'YouTube') : null),
     ]));
 }
 
+// 大きいボタンは「○○で聴く／で探す」、一覧の小さいボタンは名前だけにして、検索結果のものには虫めがねを付ける。
+// 検索結果のものには .c-svcSearch を付ける（小さいボタンの虫めがねは CSS で描き、GA の link_type は site.js がこのクラスで決める。
+// 日付ページは1ページに数百個並ぶので、ボタンごとの HTML を増やさない）
 function svc_link(array $item, array $t, bool $large): string
 {
-    return '<a href="' . h($item['href']) . '" target="_blank" rel="noopener noreferrer" class="c-svc' . ($large ? ' c-svc-large' : '') . '"'
+    $action = $item['search'] ? 'で探す' : 'で聴く';
+    return '<a href="' . h($item['href']) . '" target="_blank" rel="noopener noreferrer" class="c-svc' . ($large ? ' c-svc-large' : '') . ($item['search'] ? ' c-svcSearch' : '') . '"'
         . ga_attrs('click_streaming', ['service' => $item['label'], 'track_title' => $t['title'], 'artist' => $t['artist']]) . '>'
         . '<span style="color:' . $item['color'] . ';display:flex;align-items:center">' . icon($item['icon'], $large ? 14 : 12) . '</span>'
-        . h($item['label']) . '</a>';
+        . ($large ? '<span class="c-svcName">' . h($item['name']) . '</span><span class="c-svcAction">' . $action . '</span>' : h($item['name']))
+        . '</a>';
 }
 
 function svc_grid(array $t): string
@@ -191,7 +224,7 @@ function site_footer(): string
         . '<span style="font-size:0.72rem;color:#444">© 2026 Release Tune</span>'
         . '<a href="' . h(u('/terms')) . '" style="' . $a . '">利用規約</a>'
         . '<a href="' . h(u('/privacy')) . '" style="' . $a . '">プライバシーポリシー</a>'
-        . '<a href="https://x.com/releasetune" target="_blank" rel="noopener noreferrer" style="' . $a . '">X @releasetune</a>'
+        . '<a href="' . X_URL . '" target="_blank" rel="noopener noreferrer" style="' . $a . '">X @releasetune</a>'
         . '</footer>';
 }
 
@@ -223,13 +256,15 @@ function render_page(array $meta, string $body, int $status = 200): void
         '<script async src="https://www.googletagmanager.com/gtag/js?id=', GA_ID, '"></script>',
         "<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','", GA_ID, "');</script>",
         '<script src="', h($js), '" defer></script>',
+        implode('', array_map('ld_script', $meta['jsonld'] ?? [])),
         '</head><body>', icon_defs(), $body, site_footer(), '</body></html>';
 }
 
-// サイト名だけのページ（トップ・検索・規約など）の metadata。Next.js 版のルート layout の openGraph・twitter を引き継ぐ形
-function basic_meta(string $title, string $description, bool $noindex = false): array
+// サイト名だけのページ（トップ・検索・規約など）の metadata。Next.js 版のルート layout の openGraph・twitter を引き継ぐ形。
+// $robots は robots メタの値（例: 'noindex'）。null なら出さない
+function basic_meta(string $title, string $description, ?string $robots = null): array
 {
-    $tags = $noindex ? [['name', 'robots', 'noindex']] : [];
+    $tags = $robots !== null ? [['name', 'robots', $robots]] : [];
     array_push($tags,
         ['name', 'description', $description],
         ['property', 'og:title', $title],
@@ -246,8 +281,90 @@ function basic_meta(string $title, string $description, bool $noindex = false): 
 
 const SITE_TITLE = 'Release Tune — 今日はあの曲のリリース日';
 const SITE_DESCRIPTION = '今日この日にリリースされた楽曲を、年代を超えてご紹介します。';
+const X_URL = 'https://x.com/releasetune';
+const X_ICON_PATH = 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.261 5.636 5.903-5.636zm-1.161 17.52h1.833L7.084 4.126H5.117z';
+
+// 日付ページ上部の見出し・説明・ボタンの文言（差し替えやすいようにここにまとめる）。
+// {date} は「10月31日」に置き換わる。_today はトップ・今日の日付のページ、_other はそれ以外の日付のページで使う
+const HERO_COPY = [
+    'heading'     => '{date}は、この曲たちの誕生日です。',
+    'lead_today'  => '今日と同じ日にリリースされた曲を、年代を超えて集めました。気になる1曲は、配信サービスへのリンクからそのまま聴きに行けます。',
+    'lead_other'  => '{date}にリリースされた曲を、年代を超えて集めました。気になる1曲は、配信サービスへのリンクからそのまま聴きに行けます。',
+    'pick_today'  => '今日のピックを見る',
+    'pick_other'  => 'この日のピックを見る',
+    'follow'      => 'X @releasetune をフォロー',
+];
+
+function hero_copy(string $key, string $date): string
+{
+    return str_replace('{date}', $date, HERO_COPY[$key]);
+}
 
 function page_title(string $title): string
 {
     return $title . ' — Release Tune';
+}
+
+// 生成したカード画像（1200×630 の PNG）の og:image・twitter:image 一式
+function card_image_tags(string $url, string $alt): array
+{
+    $tags = [];
+    foreach (['property' => 'og', 'name' => 'twitter'] as $attr => $prefix) {
+        array_push($tags,
+            [$attr, "{$prefix}:image", $url],
+            [$attr, "{$prefix}:image:width", '1200'],
+            [$attr, "{$prefix}:image:height", '630'],
+            [$attr, "{$prefix}:image:type", 'image/png'],
+            [$attr, "{$prefix}:image:alt", $alt],
+        );
+    }
+    return $tags;
+}
+
+// ── 構造化データ（JSON-LD） ─────────────────────────────────
+// 持っている事実（曲名・アーティスト・発売日・ジャケット・URL）だけを書く
+
+function ld_script(array $data): string
+{
+    // JSON_HEX_TAG で < > を < などにして、曲名に「</script>」があっても閉じないようにする
+    return '<script type="application/ld+json">'
+        . json_encode(['@context' => 'https://schema.org'] + $data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP)
+        . '</script>';
+}
+
+function ld_recording(array $t): array
+{
+    return array_filter([
+        '@type' => 'MusicRecording',
+        'name' => social_title($t['title']),
+        'url' => SITE_ORIGIN . '/track/' . encode_uri_component($t['id']),
+        'byArtist' => ['@type' => 'MusicGroup', 'name' => $t['artist'], 'url' => SITE_ORIGIN . artist_path($t['artist'])],
+        'datePublished' => $t['release_date'],
+        'image' => $t['jacket'] ?: null,
+    ]);
+}
+
+// 楽曲の一覧（日付ページの先頭10曲、アーティストページの全曲など）
+function ld_item_list(string $name, array $tracks): array
+{
+    return [
+        '@type' => 'ItemList',
+        'name' => $name,
+        'numberOfItems' => count($tracks),
+        'itemListElement' => array_map(fn($t, $i) => [
+            '@type' => 'ListItem',
+            'position' => $i + 1,
+            'url' => SITE_ORIGIN . '/track/' . encode_uri_component($t['id']),
+            'name' => $t['artist'] . '「' . social_title($t['title']) . '」',
+        ], $tracks, array_keys($tracks)),
+    ];
+}
+
+// [[名前, URL], ...] の順にたどるパンくず
+function ld_breadcrumb(array $crumbs): array
+{
+    return [
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => array_map(fn($c, $i) => ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $c[0], 'item' => $c[1]], $crumbs, array_keys($crumbs)),
+    ];
 }

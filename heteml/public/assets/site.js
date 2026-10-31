@@ -1,6 +1,6 @@
 // ReleaseTune の動き（Next.js 版の各コンポーネントの onClick・useState からの移植）
 // - ジャケット画像を読めないときの ♪ 表示（Jacket.tsx）
-// - GA4 のイベント（data-ga 属性。GoogleAnalytics.tsx の gaEvent と同じ名前・値）
+// - GA4 のイベント（data-ga 属性。GoogleAnalytics.tsx の gaEvent と同じ名前・値。配信ボタンには link_type を追加）
 // - 日付ページの前日・翌日・今日に戻る・カレンダー（DatePageClient.tsx）
 // - X・Threads のシェア（TrackDetailClient.tsx）
 // - 検索フォーム（SearchPageClient.tsx）
@@ -17,7 +17,12 @@ function gaEvent(name, params) {
 
 document.addEventListener("click", function (e) {
   var ga = e.target.closest("[data-ga]");
-  if (ga) gaEvent(ga.getAttribute("data-ga"), JSON.parse(ga.getAttribute("data-ga-params") || "{}"));
+  if (ga) {
+    var params = JSON.parse(ga.getAttribute("data-ga-params") || "{}");
+    // 配信サービスのボタンは、曲への直リンクか検索結果へのリンクかを添える（site.php の svc_link が付けるクラス）
+    if (ga.classList.contains("c-svc")) params.link_type = ga.classList.contains("c-svcSearch") ? "search" : "direct";
+    gaEvent(ga.getAttribute("data-ga"), params);
+  }
   var nav = e.target.closest("button[data-href]");
   if (nav) location.href = nav.getAttribute("data-href");
 });
@@ -114,24 +119,62 @@ function artistHashtag(artist) {
   return /\p{L}/u.test(tag) ? tag : null;
 }
 
+// シェア文のテンプレート（差し替えやすいようにここにまとめる）。事実（日付・年数・曲名・アーティスト）だけを入れる。
+// {date}=10月31日 {fullDate}=2018年10月31日 {year}=2018 {years}=8 {artist} {title}
+// 押した日がリリース日（月日が同じ）なら debut → anniversary → today の順に当てはまるものを使い、それ以外の日は other
+var SHARE_TEMPLATES = {
+  debut: "今日は {artist} のデビュー記念日🎂 {years}年前の「{title}」から始まりました。",
+  anniversary: "{years}年前の今日 {date} は、{artist}「{title}」のリリース日🎂 {years}周年です。当時、どこで誰と聴いていましたか？",
+  today: "今日 {date} は {artist}「{title}」のリリース日。{year}年から{years}年。久しぶりに聴き直しませんか？",
+  other: "{fullDate}リリースの {artist}「{title}」。あれから{years}年、久しぶりに聴き直しませんか？",
+  thisYear: "{fullDate}リリースの {artist}「{title}」。"
+};
+// キリのいい周年（anniversary を使う年数）
+var SHARE_ANNIVERSARIES = [5, 10, 15, 20, 25, 30, 40, 50];
+
+// X の文字数の数え方（日本語・絵文字は2、ラテン文字などは1、URL は長さによらず23）。上限は280
+function xLength(text) {
+  var n = 0;
+  Array.from(text).forEach(function (ch) {
+    var cp = ch.codePointAt(0);
+    n += cp <= 0x10ff || (cp >= 0x2000 && cp <= 0x200d) || (cp >= 0x2010 && cp <= 0x201f) || (cp >= 0x2032 && cp <= 0x2037) ? 1 : 2;
+  });
+  return n;
+}
+
+// 押した時点の日付でテンプレートを選んで文面を作る。X の上限を超えるときは曲名を「…」で縮める
+function buildShareText(t, now, tags) {
+  var y = parseInt(t.releaseDate.slice(0, 4), 10), m = parseInt(t.releaseDate.slice(5, 7), 10), d = parseInt(t.releaseDate.slice(8, 10), 10);
+  var years = now.getFullYear() - y;
+  var isReleaseDay = now.getMonth() + 1 === m && now.getDate() === d;
+  var key = years <= 0 ? "thisYear"
+    : !isReleaseDay ? "other"
+    : t.debut ? "debut"
+    : SHARE_ANNIVERSARIES.indexOf(years) >= 0 ? "anniversary" : "today";
+  var url = "https://releasetune.com/track/" + t.id;
+  var tagLine = tags.map(function (tag) { return "#" + tag; }).join(" ");
+  var title = Array.from(t.title.replace(/ - Single$/, ""));
+  for (var len = title.length; ; len--) {
+    var vals = { date: m + "月" + d + "日", fullDate: y + "年" + m + "月" + d + "日", year: y, years: years, artist: t.artist,
+      title: title.slice(0, len).join("") + (len < title.length ? "…" : "") };
+    var body = SHARE_TEMPLATES[key].replace(/\{(\w+)\}/g, function (_, k) { return vals[k]; });
+    var text = body + "\n\n" + tagLine + "\n";
+    if (xLength(text) + 23 <= 280 || len <= 1) return text + url;
+  }
+}
+
 (function () {
   var box = document.querySelector("[data-share-id]");
   if (!box) return;
-  var id = box.getAttribute("data-share-id"), title = box.getAttribute("data-share-title");
-  var artist = box.getAttribute("data-share-artist"), releaseDate = box.getAttribute("data-share-date");
+  var track = {
+    id: box.getAttribute("data-share-id"), title: box.getAttribute("data-share-title"), artist: box.getAttribute("data-share-artist"),
+    releaseDate: box.getAttribute("data-share-date"), debut: box.hasAttribute("data-share-debut")
+  };
+  var title = track.title, artist = track.artist;
   var tag = artistHashtag(artist);
 
-  // 押した時点の日付で文面を作る（リリース日の当日は周年を先頭に出す）
   function shareText(tags) {
-    var now = new Date();
-    var years = now.getFullYear() - parseInt(releaseDate.slice(0, 4), 10);
-    var todayMmdd = String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
-    var song = artist + "「" + title.replace(/ - Single$/, "") + "」";
-    var date = releaseDate.slice(0, 4) + "年" + parseInt(releaseDate.slice(5, 7), 10) + "月" + parseInt(releaseDate.slice(8, 10), 10) + "日リリース";
-    var body = years > 0 && releaseDate.slice(5) === todayMmdd
-      ? "🎉 今日で発売から" + years + "年\n" + song + "\n📅 " + date
-      : "📅" + date + "\n" + song + (years > 0 ? "（" + years + "年前！）" : "");
-    return body + "\n\n" + tags.map(function (t) { return "#" + t; }).join(" ") + "\nhttps://releasetune.com/track/" + id;
+    return buildShareText(track, new Date(), tags);
   }
 
   box.addEventListener("click", function (e) {

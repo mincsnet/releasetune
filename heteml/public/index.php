@@ -27,6 +27,12 @@ if ($path !== '/' && str_ends_with($path, '/')) {
 try {
     if ($path === '/') {
         page_home();
+    } elseif ($path === '/robots.txt' || preg_match('#^/sitemap[-\w]*\.xml$#', $path)) {
+        require_once __DIR__ . '/../src/sitemap.php';
+        sitemap_route($path);
+    } elseif (preg_match('#^/date/([^/]+)/opengraph-image$#', $path, $m)) {
+        require_once __DIR__ . '/../src/og_image.php';
+        og_date_image($m[1]);
     } elseif (preg_match('#^/date/([^/]+)$#', $path, $m)) {
         page_date($m[1]);
     } elseif (preg_match('#^/track/([^/]+)/opengraph-image$#', $path, $m)) {

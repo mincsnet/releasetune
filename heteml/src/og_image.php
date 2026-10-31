@@ -1,5 +1,5 @@
 <?php
-// 楽曲ページの SNS カード画像（1200×630）。Next.js 版の app/track/[id]/opengraph-image.tsx を PHP の GD で再現する。
+// 楽曲ページ・日付ページの SNS カード画像（1200×630）。Next.js 版の app/track/[id]/opengraph-image.tsx を PHP の GD で再現する。
 // X のカードは画像とドメインしか表示しないので、画像だけで日付・曲名・年数が伝わるようにする。
 // 作った画像は cache/og/ に保存し、1日たったら作り直す（「◯年前」や曲名の修正を反映するため）
 
@@ -18,18 +18,55 @@ function og_image(string $id): void
 {
     $track = track_by_id($id);
     if (!$track) {
-        http_response_code(404);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Not found';
+        og_not_found();
         return;
     }
+    $years = years_ago($track['release_date']);
+    og_serve($id, fn() => og_render(
+        $track['jacket'] ?? null,
+        format_date_ja($track['release_date']) . 'リリース',
+        social_title($track['title']),
+        $track['artist'],
+        $years > 0 ? "{$years}年前" : '',
+    ));
+}
+
+// 日付ページ（トップは今日の日付のもの）のカード画像。ジャケットはページの注目曲
+function og_date_image(string $mmdd): void
+{
+    $tracks = is_valid_mmdd($mmdd) ? tracks_by_mmdd($mmdd) : [];
+    if (!$tracks) {
+        og_not_found();
+        return;
+    }
+    [$month, $day] = parse_mmdd($mmdd);
+    $f = featured_track($mmdd, $tracks);
+    og_serve("date-{$mmdd}", fn() => og_render(
+        $f['jacket'] ?? null,
+        'この日にリリースされた' . count($tracks) . '曲',
+        "{$month}月{$day}日",
+        $f['artist'] . '「' . social_title($f['title']) . '」',
+        '',
+    ));
+}
+
+function og_not_found(): void
+{
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Not found';
+}
+
+// cache/og/{$key}.png を返す。なければ・1日たっていれば $render で作り直す
+function og_serve(string $key, callable $render): void
+{
     $dir = __DIR__ . '/../cache/og';
-    $file = $dir . '/' . preg_replace('/[^0-9A-Za-z_-]/', '_', $id) . '.png';
+    $file = $dir . '/' . preg_replace('/[^0-9A-Za-z_-]/', '_', $key) . '.png';
     if (!is_file($file) || filemtime($file) < time() - OG_CACHE_SEC) {
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        $png = og_render($track);
+        $png = $render();
         file_put_contents($file . '.tmp', $png);
         rename($file . '.tmp', $file);
     }
@@ -51,17 +88,14 @@ function og_title_style(string $title): array
     return [44, 3];
 }
 
-function og_render(array $track): string
+// 左にジャケット、右に上から金色の1行（$date）・大きな見出し（$title）・副題（$artist）・金色の札（$badge、空なら出さない）
+function og_render(?string $jacketUrl, string $date, string $title, string $artist, string $badge): string
 {
-    $title = social_title($track['title']);
-    $years = years_ago($track['release_date']);
-    $date = format_date_ja($track['release_date']) . 'リリース';
-    $badge = $years > 0 ? "{$years}年前" : '';
     [$titleSize, $titleLines] = og_title_style($title);
 
     $tmp = sys_get_temp_dir() . '/rt-og-' . getmypid();
     @mkdir($tmp);
-    $sans = og_load_fonts('Noto Sans JP', [500, 700], $title . $track['artist'] . $date . $badge . OG_TAGLINE . '♪…', $tmp);
+    $sans = og_load_fonts('Noto Sans JP', [500, 700], $title . $artist . $date . $badge . OG_TAGLINE . '♪…', $tmp);
     $logo = og_load_fonts('Zen Old Mincho', [700], 'ReleaseTun', $tmp);
 
     $im = imagecreatetruecolor(OG_W, OG_H);
@@ -69,7 +103,7 @@ function og_render(array $track): string
 
     // 左: ジャケット（取得できなければ ♪ の代替表示）
     $jy = (OG_H - OG_JACKET) / 2;
-    $jacket = og_load_jacket($track['jacket'] ?? null);
+    $jacket = og_load_jacket($jacketUrl);
     if ($jacket) {
         imagecopy($im, $jacket, 64, $jy, 0, 0, OG_JACKET, OG_JACKET);
     } else {
@@ -94,7 +128,7 @@ function og_render(array $track): string
     $y = $jy;
     $y = og_text_block($im, $sans[500], 30, normal_lh: true, color: $gold, x: $x0, y: $y, w: $colW, text: $date, maxLines: 1, limitY: $bottomTop);
     $y = og_text_block($im, $sans[700], $titleSize, lh: 1.25, color: $white, x: $x0, y: $y + 16, w: $colW, text: $title, maxLines: $titleLines, limitY: $bottomTop);
-    $y = og_text_block($im, $sans[500], 32, lh: 1.35, color: $sub, x: $x0, y: $y + 16, w: $colW, text: $track['artist'], maxLines: 2, limitY: $bottomTop);
+    $y = og_text_block($im, $sans[500], 32, lh: 1.35, color: $sub, x: $x0, y: $y + 16, w: $colW, text: $artist, maxLines: 2, limitY: $bottomTop);
     if ($badge !== '') {
         $bh = og_line_height($sans[700], 30) + 8;
         $by = $y + 24;

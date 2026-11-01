@@ -6,6 +6,7 @@
 require_once __DIR__ . '/http.php';
 require_once __DIR__ . '/site.php';
 require_once __DIR__ . '/tracks.php';
+require_once __DIR__ . '/releases.php';
 
 const OG_W = 1200;
 const OG_H = 630;
@@ -24,7 +25,7 @@ function og_image(string $id): void
     $years = years_ago($track['release_date']);
     og_serve($id, fn() => og_render(
         $track['jacket'] ?? null,
-        format_date_ja($track['release_date']) . 'リリース',
+        format_date_ja($track['release_date']) . 'リリース' . (release_kind($track) === 'album' ? '・アルバム' : ''),
         social_title($track['title']),
         $track['artist'],
         $years > 0 ? "{$years}年前" : '',

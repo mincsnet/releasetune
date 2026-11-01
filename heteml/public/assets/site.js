@@ -7,7 +7,7 @@
 
 function rtJacketError(img) {
   var box = img.parentElement;
-  box.setAttribute("style", box.getAttribute("data-fallback-style"));
+  box.classList.add("c-jkNone");
   box.textContent = "♪";
 }
 
@@ -19,6 +19,9 @@ document.addEventListener("click", function (e) {
   var ga = e.target.closest("[data-ga]");
   if (ga) {
     var params = JSON.parse(ga.getAttribute("data-ga-params") || "{}");
+    // 配信ボタンの曲名・アーティストは、ボタンを囲む枠に1回だけ書いてある（site.php の svc_wrap）
+    var ctx = ga.closest("[data-ga-ctx]");
+    if (ctx) params = Object.assign(JSON.parse(ctx.getAttribute("data-ga-ctx")), params);
     // 配信サービスのボタンは、曲への直リンクか検索結果へのリンクかを添える（site.php の svc_link が付けるクラス）
     if (ga.classList.contains("c-svc")) params.link_type = ga.classList.contains("c-svcSearch") ? "search" : "direct";
     gaEvent(ga.getAttribute("data-ga"), params);
@@ -121,13 +124,14 @@ function artistHashtag(artist) {
 
 // シェア文のテンプレート（差し替えやすいようにここにまとめる）。事実（日付・年数・曲名・アーティスト）だけを入れる。
 // {date}=10月31日 {fullDate}=2018年10月31日 {year}=2018 {years}=8 {artist} {title}
+// {work}=米津玄師「Flamingo」（アルバムは「レミオロメンのアルバム「朝顔」」）
 // 押した日がリリース日（月日が同じ）なら debut → anniversary → today の順に当てはまるものを使い、それ以外の日は other
 var SHARE_TEMPLATES = {
   debut: "今日は {artist} のデビュー記念日🎂 {years}年前の「{title}」から始まりました。",
-  anniversary: "{years}年前の今日 {date} は、{artist}「{title}」のリリース日🎂 {years}周年です。当時、どこで誰と聴いていましたか？",
-  today: "今日 {date} は {artist}「{title}」のリリース日。{year}年から{years}年。久しぶりに聴き直しませんか？",
-  other: "{fullDate}リリースの {artist}「{title}」。あれから{years}年、久しぶりに聴き直しませんか？",
-  thisYear: "{fullDate}リリースの {artist}「{title}」。"
+  anniversary: "{years}年前の今日 {date} は、{work}のリリース日🎂 {years}周年です。当時、どこで誰と聴いていましたか？",
+  today: "今日 {date} は {work}のリリース日。{year}年から{years}年。久しぶりに聴き直しませんか？",
+  other: "{fullDate}リリースの {work}。あれから{years}年、久しぶりに聴き直しませんか？",
+  thisYear: "{fullDate}リリースの {work}。"
 };
 // キリのいい周年（anniversary を使う年数）
 var SHARE_ANNIVERSARIES = [5, 10, 15, 20, 25, 30, 40, 50];
@@ -155,8 +159,9 @@ function buildShareText(t, now, tags) {
   var tagLine = tags.map(function (tag) { return "#" + tag; }).join(" ");
   var title = Array.from(t.title.replace(/ - Single$/, ""));
   for (var len = title.length; ; len--) {
-    var vals = { date: m + "月" + d + "日", fullDate: y + "年" + m + "月" + d + "日", year: y, years: years, artist: t.artist,
-      title: title.slice(0, len).join("") + (len < title.length ? "…" : "") };
+    var shortTitle = title.slice(0, len).join("") + (len < title.length ? "…" : "");
+    var vals = { date: m + "月" + d + "日", fullDate: y + "年" + m + "月" + d + "日", year: y, years: years, artist: t.artist, title: shortTitle,
+      work: t.artist + (t.album ? "のアルバム" : "") + "「" + shortTitle + "」" };
     var body = SHARE_TEMPLATES[key].replace(/\{(\w+)\}/g, function (_, k) { return vals[k]; });
     var text = body + "\n\n" + tagLine + "\n";
     if (xLength(text) + 23 <= 280 || len <= 1) return text + url;
@@ -168,7 +173,8 @@ function buildShareText(t, now, tags) {
   if (!box) return;
   var track = {
     id: box.getAttribute("data-share-id"), title: box.getAttribute("data-share-title"), artist: box.getAttribute("data-share-artist"),
-    releaseDate: box.getAttribute("data-share-date"), debut: box.hasAttribute("data-share-debut")
+    releaseDate: box.getAttribute("data-share-date"), debut: box.hasAttribute("data-share-debut"),
+    album: box.hasAttribute("data-share-album")
   };
   var title = track.title, artist = track.artist;
   var tag = artistHashtag(artist);

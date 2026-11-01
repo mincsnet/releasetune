@@ -6,7 +6,7 @@
 // 一覧系（日付・アーティスト・検索）で取得する列。楽曲詳細でしか使わない長文（note_long）と出典は含めない
 const LIST_COLUMNS = [
     'id', 'title', 'artist', 'release_date', 'mmdd', 'jacket', 'note',
-    'spotify', 'apple', 'amazon', 'youtube', 'youtube_id', 'youtube_verified',
+    'spotify', 'apple', 'amazon', 'youtube', 'youtube_id', 'youtube_verified', 'track_count',
 ];
 
 // 日付・アーティストの最大件数。Supabase の1回あたりの上限（1000行）で表示していた件数と揃える
@@ -69,6 +69,30 @@ function artist_names(): array
         $names[mb_strtolower($name)] ??= $name;
     }
     return array_values($names);
+}
+
+// 日付ページのピック用。Wikipedia に作品の記事が見つかっている（紹介文の下調べで記事名が分かった）作品の id
+function wiki_track_ids(array $ids): array
+{
+    if (!$ids) {
+        return [];
+    }
+    $stmt = db()->prepare('SELECT track_id FROM track_note_drafts WHERE wiki_title IS NOT NULL AND track_id IN ('
+        . implode(',', array_fill(0, count($ids), '?')) . ')');
+    $stmt->execute(array_values($ids));
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// 日付ページのピック用。アーティストごとの作品数（キーは小文字の名前。アーティストページと同じく大文字小文字を区別しない）
+function artist_track_counts(array $names): array
+{
+    if (!$names) {
+        return [];
+    }
+    $stmt = db()->prepare('SELECT artist_lc, COUNT(*) FROM tracks WHERE artist_lc IN ('
+        . implode(',', array_fill(0, count($names), 'LOWER(?)')) . ') GROUP BY artist_lc');
+    $stmt->execute(array_values($names));
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_KEY_PAIR));
 }
 
 function tracks_query(string $where, array $params, int $limit): array

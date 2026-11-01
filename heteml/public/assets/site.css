@@ -597,6 +597,83 @@ button {
   opacity: 0.85;
 }
 
+/* 種類（シングル・EP・アルバム）・盤の違い・ピックのわけ */
+
+.c-cardTags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -2px 0 10px;
+}
+
+.dp-cardYear {
+  font-size: 0.68rem;
+  color: var(--text-mute);
+}
+
+.dp-pickBadge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--gold);
+  background: #c8a84b22;
+  border: 1px solid #c8a84b44;
+  padding: 0 6px;
+  border-radius: 3px;
+}
+
+.dp-picks {
+  padding-top: 24px;
+}
+
+/* 一括配信を畳んだ枠 */
+
+.dp-batchNote {
+  font-size: 0.7rem;
+  color: var(--text-mute);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.dp-batchList summary {
+  font-size: 0.76rem;
+  color: var(--gold);
+  cursor: pointer;
+}
+
+.dp-batchList ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dp-batchList li {
+  font-size: 0.78rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.dp-batchList li a {
+  color: var(--text-pri);
+  text-decoration: none;
+}
+
+.dp-debug {
+  margin-top: 16px;
+  padding: 12px;
+  font-size: 0.68rem;
+  line-height: 1.6;
+  color: var(--text-sec);
+  background: var(--surface1);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
 /* データなし */
 
 .dp-empty {
@@ -1665,6 +1742,110 @@ button {
 }
 .c-svc-large > :first-child {
   grid-row: 1 / 3;
+}
+/* ジャケット（site.php の jacket）。大きさは置き場所の --jacket-size、なければ HTML の --jk */
+.c-jk {
+  width: var(--jacket-size, var(--jk));
+  height: var(--jacket-size, var(--jk));
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.c-jkFull {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  background: linear-gradient(135deg, #c8a84b33 0%, #1e1e1e 100%);
+}
+.c-jk img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  color: transparent;
+}
+/* 画像がない・読めないとき */
+.c-jkNone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--jacket-size, var(--jk)) * 0.3);
+  color: #c8a84bcc;
+}
+.c-jkFull.c-jkNone {
+  font-size: 4rem;
+}
+
+/* 配信サービスのボタンの並び（site.php の svc_grid・track_svc_links） */
+.c-svcGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.c-svcRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.c-svcIcon {
+  display: flex;
+  align-items: center;
+}
+.c-svcIcon-spotify { color: #1DB954; }
+.c-svcIcon-apple { color: #fc3c44; }
+.c-svcIcon-amazon { color: #00A8E1; }
+.c-svcIcon-youtube { color: #FF0000; }
+
+/* 作品の種類などの小さなラベル（日付・楽曲・アーティスト・検索で共通） */
+.c-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.c-tag {
+  font-size: 0.64rem;
+  line-height: 1.6;
+  padding: 0 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--text-sec);
+  white-space: nowrap;
+}
+.c-tagKind {
+  color: var(--text-pri);
+}
+.c-tagMute {
+  border-style: dashed;
+  color: var(--text-mute);
+}
+/* 楽曲ページの「ほかのバージョン」 */
+.c-versionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-versionList li {
+  font-size: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.c-versionList a {
+  color: var(--text-pri);
+  text-decoration: none;
+}
+.c-versionDate {
+  font-size: 0.7rem;
+  color: var(--text-mute);
+}
+.td-tags {
+  margin: 10px 0 0;
 }
 .c-svcAction {
   color: var(--text-mute);

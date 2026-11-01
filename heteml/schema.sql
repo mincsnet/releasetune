@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS tracks (
   -- iTunes のジャンル名（アルバム単位。例: J-Pop）。新着は RSS、既存の曲は bin/backfill_genre.php が Lookup API で入れる。
   -- 2026-10-24 に追加。既存の DB には ALTER TABLE tracks ADD COLUMN genre VARCHAR(64) NULL AFTER note_source_url
   genre             VARCHAR(64)   NULL,
+  -- 作品（id は Apple の作品 ID）の収録曲数。シングル・EP・アルバムの見分けに使う（src/releases.php の release_kind）。
+  -- 新着は cron/new_releases.php、既存の作品は bin/backfill_track_count.php が Lookup API で入れる。
+  -- 2026-11-01 に追加。既存の DB には ALTER TABLE tracks ADD COLUMN track_count SMALLINT NULL AFTER genre
+  track_count       SMALLINT      NULL,
   -- アーティストページ（大文字小文字を区別しない一致）用。索引を効かせるため小文字化した値を持つ
   artist_lc         VARCHAR(1024) AS (LOWER(artist)) STORED,
   PRIMARY KEY (id),

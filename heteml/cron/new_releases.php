@@ -2,7 +2,7 @@
 <?php
 // 新着の取得（毎日 JST 0:00、ヘテムルの cron から実行）。app/api/cron/new-releases/route.ts からの移植。
 // iTunes RSS から新着100件を取得 → まだ無い曲だけ追加 → 追加した曲だけ Spotify・YouTube の直リンクを補完
-// （既存曲の API クォータ消費を避けるため）。
+// （既存曲の API クォータ消費を避けるため）。収録曲数（RSS にない）は追加した曲だけ Lookup で1回にまとめて取る。
 //
 //   php heteml/cron/new_releases.php            本実行
 //   php heteml/cron/new_releases.php --dry-run  追加される曲を表示するだけ（DB に書かず、Spotify・YouTube も呼ばない）
@@ -11,6 +11,7 @@ require_once __DIR__ . '/../src/bootstrap.php';
 require_once __DIR__ . '/../src/cron.php';
 require_once __DIR__ . '/../src/spotify.php';
 require_once __DIR__ . '/../src/youtube.php';
+require_once __DIR__ . '/../src/itunes.php';
 
 cron_main('new_releases', function (array $args): array {
     $dryRun = in_array('--dry-run', $args, true);
@@ -68,13 +69,22 @@ cron_main('new_releases', function (array $args): array {
     }
 
     $enriched = 0;
+    $counted = 0;
     if ($newRows && !$dryRun) {
         $token = spotify_token();
         $update = fn(array $set, string $id) => $pdo
             ->prepare('UPDATE tracks SET ' . implode(', ', array_map(fn($c) => "`{$c}` = ?", array_keys($set))) . ' WHERE id = ?')
             ->execute([...array_values($set), $id]);
+        // 取れなくても追加は済んでいる（空のまま。bin/backfill_track_count.php で後から埋められる）
+        $albumIds = array_combine(array_column($newRows, 'id'), array_map('itunes_album_id', $newRows));
+        $collections = itunes_lookup_collections($albumIds) ?? [];
         foreach ($newRows as $r) {
             $set = [];
+            $count = $collections[$albumIds[$r['id']]]['trackCount'] ?? null;
+            if (is_int($count) && $count > 0) {
+                $set['track_count'] = $count;
+                $counted++;
+            }
             if ($token !== null) {
                 $sp = spotify_search($token, $r['title'], $r['artist'], $r['release_date']);
                 if ($sp['url'] !== null) {
@@ -89,7 +99,7 @@ cron_main('new_releases', function (array $args): array {
             }
             if ($set) {
                 $update($set, $r['id']);
-                $enriched++;
+                $enriched += isset($set['spotify']) || isset($set['youtube']) ? 1 : 0;
             }
         }
     }
@@ -99,6 +109,7 @@ cron_main('new_releases', function (array $args): array {
         'fetched'     => count($entries),
         'added'       => count($newRows),
         'enriched'    => $enriched,
+        'counted'     => $counted,
         'sample'      => array_map(fn($r) => "{$r['artist']} | {$r['title']} | {$r['genre']}", array_slice($newRows, 0, 3)),
         'revalidated' => $newRows && !$dryRun ? revalidate_site() : false,
     ];

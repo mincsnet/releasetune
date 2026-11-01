@@ -80,47 +80,21 @@ function social_title(string $title): string
     return preg_replace('/ - Single$/u', '', $title);
 }
 
-// 注目曲の選び方。Next.js 版の JavaScript（hash = (hash * 31 + charCode) | 0）と同じ 32 ビットの計算にして、同じ曲を選ぶ
-function featured_index(string $mmdd, int $count): int
-{
-    if ($count === 0) {
-        return 0;
-    }
-    $hash = 0;
-    foreach (str_split($mmdd) as $ch) {
-        $hash = ($hash * 31 + ord($ch)) & 0xFFFFFFFF;
-        if ($hash >= 0x80000000) {
-            $hash -= 0x100000000;
-        }
-    }
-    return abs($hash) % $count;
-}
-
-// 日付ページの注目曲（ページ・カード画像・構造化データで同じ曲を使う）
-function featured_track(string $mmdd, array $tracks): ?array
-{
-    return $tracks ? $tracks[featured_index($mmdd, count($tracks))] : null;
-}
-
 // ── 部品 ──────────────────────────────────────────────
 
-// components/Jacket.tsx。画像を読めなければ ♪ の代替表示にする（site.js の rtJacketError）。
+// components/Jacket.tsx。画像を読めなければ ♪ の代替表示にする（site.js の rtJacketError が c-jkNone を付ける）。
+// 見た目は site.css の .c-jk。一覧では1ページに数百個並ぶので、ここでは style を書かずクラスと大きさだけを出す。
+// 大きさは置き場所の --jacket-size があればそれ、なければ $size（$fullWidth は幅いっぱいの正方形）。
 // $eager は最初に見える画像（日付ページの注目曲など）用。遅延読み込みにせず先に取りに行く
 function jacket(?string $src, string $title, int $size = 68, bool $fullWidth = false, bool $eager = false): string
 {
-    $box = "var(--jacket-size, {$size}px)";
-    $container = $fullWidth
-        ? 'width:100%;aspect-ratio:1/1;position:relative;border-radius:4px;overflow:hidden;background:linear-gradient(135deg, #c8a84b33 0%, #1e1e1e 100%)'
-        : "width:{$box};height:{$box};flex-shrink:0;border-radius:4px;overflow:hidden;position:relative";
-    $fallback = $container . ';display:flex;align-items:center;justify-content:center;font-size:'
-        . ($fullWidth ? '4rem' : "calc({$box} * 0.3)") . ';color:#c8a84bcc';
+    $box = '<div class="c-jk' . ($fullWidth ? ' c-jkFull' : '') . (!$src ? ' c-jkNone' : '') . '"' . ($fullWidth ? '' : ' style="--jk:' . $size . 'px"') . '>';
     if (!$src) {
-        return '<div style="' . h($fallback) . '">♪</div>';
+        return $box . '♪</div>';
     }
-    return '<div style="' . h($container) . '" data-fallback-style="' . h($fallback) . '">'
-        . '<img alt="' . h($title) . '" ' . ($eager ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"') . ' src="' . h($src) . '"'
-        . ' style="position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent"'
-        . ' onerror="rtJacketError(this)"></div>';
+    $px = $fullWidth ? 600 : $size;
+    return $box . '<img alt="' . h($title) . '" width="' . $px . '" height="' . $px . '" '
+        . ($eager ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"') . ' src="' . h($src) . '" onerror="rtJacketError(this)"></div>';
 }
 
 // クリック時に GA4 のイベントを送る属性（site.js が拾う）
@@ -163,41 +137,46 @@ function icon(string $name, int $s): string
 function svc_items(array $t): array
 {
     $isSearch = fn(string $href) => str_contains($href, '/search') || str_contains($href, 'search_query=');
-    $item = fn(string $href, string $color, string $icon, string $label, ?string $name = null) => [
-        'href' => $href, 'color' => $color, 'icon' => $icon, 'label' => $label, 'name' => $name ?? $label, 'search' => $isSearch($href),
+    $item = fn(string $href, string $icon, string $label, ?string $name = null) => [
+        'href' => $href, 'icon' => $icon, 'label' => $label, 'name' => $name ?? $label, 'search' => $isSearch($href),
     ];
     return array_values(array_filter([
-        !empty($t['spotify']) ? $item($t['spotify'], '#1DB954', 'spotify', 'Spotify') : null,
-        !empty($t['apple']) ? $item($t['apple'], '#fc3c44', 'apple', 'Apple Music') : null,
-        !empty($t['amazon']) ? $item($t['amazon'], '#00A8E1', 'amazon', 'Amazon Music') : null,
-        !empty($t['youtube_id']) ? $item('https://music.youtube.com/watch?v=' . $t['youtube_id'], '#FF0000', 'youtube', 'YouTube Music')
-            : (!empty($t['youtube']) ? $item($t['youtube'], '#FF0000', 'youtube', 'YouTube Music', 'YouTube') : null),
+        !empty($t['spotify']) ? $item($t['spotify'], 'spotify', 'Spotify') : null,
+        !empty($t['apple']) ? $item($t['apple'], 'apple', 'Apple Music') : null,
+        !empty($t['amazon']) ? $item($t['amazon'], 'amazon', 'Amazon Music') : null,
+        !empty($t['youtube_id']) ? $item('https://music.youtube.com/watch?v=' . $t['youtube_id'], 'youtube', 'YouTube Music')
+            : (!empty($t['youtube']) ? $item($t['youtube'], 'youtube', 'YouTube Music', 'YouTube') : null),
     ]));
 }
 
 // 大きいボタンは「○○で聴く／で探す」、一覧の小さいボタンは名前だけにして、検索結果のものには虫めがねを付ける。
-// 検索結果のものには .c-svcSearch を付ける（小さいボタンの虫めがねは CSS で描き、GA の link_type は site.js がこのクラスで決める。
-// 日付ページは1ページに数百個並ぶので、ボタンごとの HTML を増やさない）
-function svc_link(array $item, array $t, bool $large): string
+// 検索結果のものには .c-svcSearch を付ける（小さいボタンの虫めがねは CSS で描き、GA の link_type は site.js がこのクラスで決める）。
+// 日付ページは1ページに数百個並ぶので、ボタンごとの HTML を増やさない: GA の曲名・アーティストはボタンを囲む枠の
+// data-ga-ctx に1回だけ書き（svc_wrap）、site.js が service と合わせて送る。色は site.css の .c-svcIcon-{サービス}
+function svc_link(array $item, bool $large): string
 {
     $action = $item['search'] ? 'で探す' : 'で聴く';
     return '<a href="' . h($item['href']) . '" target="_blank" rel="noopener noreferrer" class="c-svc' . ($large ? ' c-svc-large' : '') . ($item['search'] ? ' c-svcSearch' : '') . '"'
-        . ga_attrs('click_streaming', ['service' => $item['label'], 'track_title' => $t['title'], 'artist' => $t['artist']]) . '>'
-        . '<span style="color:' . $item['color'] . ';display:flex;align-items:center">' . icon($item['icon'], $large ? 14 : 12) . '</span>'
+        . ga_attrs('click_streaming', ['service' => $item['label']]) . '>'
+        . '<span class="c-svcIcon c-svcIcon-' . $item['icon'] . '">' . icon($item['icon'], $large ? 14 : 12) . '</span>'
         . ($large ? '<span class="c-svcName">' . h($item['name']) . '</span><span class="c-svcAction">' . $action . '</span>' : h($item['name']))
         . '</a>';
 }
 
+function svc_wrap(array $t, string $class, bool $large): string
+{
+    return '<div class="' . $class . '" data-ga-ctx="' . h(json_encode(['track_title' => $t['title'], 'artist' => $t['artist']], JSON_UNESCAPED_UNICODE)) . '">'
+        . implode('', array_map(fn($i) => svc_link($i, $large), svc_items($t))) . '</div>';
+}
+
 function svc_grid(array $t): string
 {
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        . implode('', array_map(fn($i) => svc_link($i, $t, true), svc_items($t))) . '</div>';
+    return svc_wrap($t, 'c-svcGrid', true);
 }
 
 function track_svc_links(array $t): string
 {
-    return '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        . implode('', array_map(fn($i) => svc_link($i, $t, false), svc_items($t))) . '</div>';
+    return svc_wrap($t, 'c-svcRow', false);
 }
 
 // 一覧の年見出し（発売年が変わるところに入れる）

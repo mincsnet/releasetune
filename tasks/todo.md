@@ -109,7 +109,7 @@
 
 **別タスク候補**: 一括配信の昔のシングルに本来の発売日を付ける（Wikipedia・MusicBrainz などとの照合）。日付が正しくなれば、松本伊代の24曲はそれぞれ本来の日に出る
 
-**Phase 3: 聴く体験**（中）— 2026-11-01 実装・手元で確認済み。**本番には未反映**（本番は ALTER → 反映 → 試聴の一括補完の順。ユーザー確認待ち）
+**Phase 3: 聴く体験**（中）— 2026-11-01 実装・**本番に反映済み、試聴の一括補完を実行中**（作業ブランチ。main には未取り込み）
 
 調べて分かったこと（2026-11-01）
 - 試聴: iTunes Lookup に `entity=song` を付けると、作品ごとに収録曲（曲 ID・曲名・曲順・`previewUrl`）が返る。アルバム200作品を1回で引けた（17秒・5MB・2,904曲中2,903曲に試聴あり）。DB に試聴の情報はまだない（調査 A: 0%）
@@ -139,7 +139,10 @@
   - Spotify: アルバム12作品で11作品がアルバムに一致、11件をアルバム情報で確認してすべて同じ作品（BENNIE K は特典付きの盤ではなく通常盤）。日次補完を `--dry-run --limit=8` で 6件見つかる。**最初の版は「直リンクではない」の条件が検索 URL（`open.spotify.com/search/`）も直リンク扱いにしていた** → `/track/`・`/album/` だけを直リンクにした
   - Odesli（song.link）は公開 API 終了（401）で使えない
   - 主要 URL（トップ・日付3つ・楽曲・アーティスト・検索・404・sitemap・robots）すべて想定どおり。PHP の警告・コンソールのエラーなし。HTML の増え方は 10/31 で試聴ボタン（1つ約250バイト）と選択欄（約600バイト）だけ
-- [ ] 本番: ALTER（`ALTER TABLE tracks ADD COLUMN apple_track_id BIGINT NULL AFTER track_count, ADD COLUMN preview_url TEXT NULL AFTER apple_track_id, ADD COLUMN spotify_checked_at DATETIME NULL AFTER preview_url`）→ `deploy.sh` → 試聴の一括補完はサーバー上で `nohup` で動かし、ログをファイルに（Phase 2 は SSH が終わりを返さず、手元の待ちが止まった）→ 本番で確認（CSP で音源が止められないか）
+- [x] 本番（2026-11-01 20:35〜）: 反映前の rsync 差分は Phase 3 の13ファイルだけ（削除なし）→ ALTER（0.32秒）→ `deploy.sh`・php8.3 の構文チェック → トップ・10/31・楽曲が 200、CSP に `media-src` が出ている
+  - 楽曲ページ（`/track/1000103960`）で試聴が再生される（CSP で止められない）、GA `preview_play`（page_type=track）、コンソールのエラーなし。10/31 でいつも使うサービス（Apple Music）を選ぶと66枠すべてボタン1つ、解除で戻る
+  - **ヘテムルには `nohup`・`setsid`・`screen` がなく、SSH を閉じるとサーバー上で裏に回したプロセスも止まる**（`( … &)` で始めても進まなかった）。一括補完は SSH をつないだまま手元の裏で実行し、終わったかは `logs/backfill_preview-YYYY-MM.log` で見る。実行中に `--dry-run` を動かすと二重起動防止で Skipped になる（進み具合は件数を数える）
+- [ ] 試聴の一括補完の完了（20:41 開始、1分あたり約100件・3時間ほどの見込み）→ 本番で 10/31・10/15・02/29 の試聴の割合と注目曲の再生を確認
 - [ ] 本番の数日後: Spotify 日次補完のログで 429 が出ていないか、1日の直リンクの増え方（Before: 1日115〜162件）
 - [ ] ユーザー: GA4 の管理画面でカスタム ディメンションに `preferred`・`track_id`・`page_type`（イベント スコープ）を登録すると、レポートで見分けられる
 

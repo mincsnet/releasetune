@@ -84,11 +84,14 @@ function pick_badge(array $t): string
 }
 
 // 日付ページの一覧の1作品
-function date_card(array $u, int $i, bool $isPick = false): string
+// $previewPageType を渡すと試聴ボタンを付ける（ピックだけ。「ほかの作品」には付けない）
+function date_card(array $u, int $i, bool $isPick = false, ?string $previewPageType = null): string
 {
     $t = $u['track'];
+    $jacket = '<a href="' . h(u('/track/' . $t['id'])) . '">' . jacket($t['jacket'], $t['title'], 68) . '</a>';
+    $preview = $previewPageType !== null ? preview_button($t, $previewPageType) : '';
     return '<div class="dp-card" style="animation-delay:' . min($i * 70, 700) . 'ms">'
-        . '<a href="' . h(u('/track/' . $t['id'])) . '">' . jacket($t['jacket'], $t['title'], 68) . '</a>'
+        . ($preview !== '' ? '<div class="c-pv">' . $jacket . $preview . '</div>' : $jacket)
         . '<div class="dp-cardBody"><a class="dp-plainLink" href="' . h(u('/track/' . $t['id'])) . '"' . view_track_ga($t) . '><div class="dp-cardTitle">' . h($t['title']) . '</div></a>'
         . '<a class="dp-cardArtist" href="' . h(artist_url($t['artist'])) . '">' . h($t['artist']) . '</a>'
         . '<div class="c-cardTags">' . ($isPick ? pick_badge($t) . '<span class="dp-cardYear">' . format_date_ja($t['release_date']) . '</span>' : '')
@@ -167,13 +170,13 @@ function date_body(string $mmdd, array $tracks, string $today, array $debuts, st
     if ($featured) {
         $f = $featured;
         $years = years_ago($f['release_date']);
-        $html .= '<div class="dp-featured" id="pick"><a class="dp-featuredJacket" href="' . h(u('/track/' . $f['id'])) . '"' . view_track_ga($f) . '>'
-            . jacket($f['jacket'], $f['title'], 68, true, true) . '</a><div class="dp-featuredBody">'
+        $html .= '<div class="dp-featured" id="pick"><div class="dp-featuredJacket c-pv"><a href="' . h(u('/track/' . $f['id'])) . '"' . view_track_ga($f) . '>'
+            . jacket($f['jacket'], $f['title'], 68, true, true) . '</a>' . preview_button($f, $pageType) . '</div><div class="dp-featuredBody">'
             . '<div class="dp-featuredHead"><a class="dp-plainLink" href="' . h(u('/track/' . $f['id'])) . '"><h2 class="dp-featuredTitle">' . h($f['title']) . '</h2></a>'
             . '<div class="dp-featuredArtist">' . h($f['artist']) . '</div><div class="dp-featuredMeta"><span class="dp-featuredDate">' . format_date_ja($f['release_date']) . '</span>'
             . (pick_badge($f) ?: ($years > 0 ? '<span class="dp-yearsBadge">' . $years . '年前</span>' : '')) . release_tags($f, count($view['picks'][0]['versions'])) . '</div></div>'
             . (!empty($f['note']) ? '<p class="dp-featuredNote">' . h($f['note']) . '</p>' : '')
-            . svc_grid($f);
+            . svc_grid($f) . svc_pref_picker();
         if (!empty($f['youtube_id']) && !empty($f['youtube_verified'])) {
             $html .= '<div class="dp-mv"><div class="dp-mvLabel">MV / 公式動画</div><div class="dp-mvFrame">'
                 . '<iframe src="https://www.youtube.com/embed/' . h($f['youtube_id']) . '?rel=0" title="' . h($f['title'] . ' - ' . $f['artist']) . '"'
@@ -186,7 +189,7 @@ function date_body(string $mmdd, array $tracks, string $today, array $debuts, st
         if (count($view['picks']) > 1) {
             $html .= '<div class="dp-picks"><div class="dp-othersHeading">' . ($isToday ? '今日' : "{$month}月{$day}日") . 'のピック</div><div class="dp-othersList">';
             foreach (array_slice($view['picks'], 1) as $i => $p) {
-                $html .= '<div class="dp-othersItem">' . date_card($p, $i, true) . '</div>';
+                $html .= '<div class="dp-othersItem">' . date_card($p, $i, true, $pageType) . '</div>';
             }
             $html .= '</div></div>';
         }
@@ -268,7 +271,7 @@ function page_track(string $id): void
         . (is_debut_track($t) ? ' data-share-debut="1"' : '') . (release_kind($t) === 'album' ? ' data-share-album="1"' : '');
     $versions = other_versions($t);
     $html = '<div class="td-page"><a class="td-back" href="' . h(u("/date/{$mmdd}")) . '">← ' . "{$month}月{$day}日のリリース一覧" . '</a>'
-        . '<div class="td-hero"><div class="td-jacket">' . jacket($t['jacket'], $t['title'], 68, true) . '</div><div>'
+        . '<div class="td-hero"><div class="td-jacket c-pv">' . jacket($t['jacket'], $t['title'], 68, true) . preview_button($t, 'track') . '</div><div>'
         . '<div class="td-head"><h1 class="td-title">' . h($t['title']) . '</h1>'
         . '<a class="td-artist" href="' . h(artist_url($t['artist'])) . '">' . h($t['artist']) . '</a>'
         . '<div class="td-meta"><span class="td-date">' . format_date_ja($t['release_date']) . '</span>'

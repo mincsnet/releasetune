@@ -4,6 +4,7 @@
 // - 日付ページの前日・翌日・今日に戻る・カレンダー（DatePageClient.tsx）
 // - X・Threads のシェア（TrackDetailClient.tsx）
 // - 検索フォーム（SearchPageClient.tsx）
+// - 試聴の再生・いつも使うサービス（PHP 版で追加）
 
 function rtJacketError(img) {
   var box = img.parentElement;
@@ -23,11 +24,77 @@ document.addEventListener("click", function (e) {
     var ctx = ga.closest("[data-ga-ctx]");
     if (ctx) params = Object.assign(JSON.parse(ctx.getAttribute("data-ga-ctx")), params);
     // 配信サービスのボタンは、曲への直リンクか検索結果へのリンクかを添える（site.php の svc_link が付けるクラス）
-    if (ga.classList.contains("c-svc")) params.link_type = ga.classList.contains("c-svcSearch") ? "search" : "direct";
+    if (ga.classList.contains("c-svc")) {
+      params.link_type = ga.classList.contains("c-svcSearch") ? "search" : "direct";
+      // いつも使うサービスのボタンからか（下の「いつも使うサービス」。アイコンのクラス c-svcIcon-{サービス} で見分ける）
+      var pref = document.documentElement.getAttribute("data-svc");
+      params.preferred = !!pref && !!ga.querySelector(".c-svcIcon-" + pref);
+    }
     gaEvent(ga.getAttribute("data-ga"), params);
   }
   var nav = e.target.closest("button[data-href]");
   if (nav) location.href = nav.getAttribute("data-href");
+});
+
+// ── 試聴（30秒） ─────────────────────────────────────────
+// site.php の preview_button。音源は押されたときに読む。同時に流すのは1曲だけ（別のボタンを押したら前を止める）
+
+(function () {
+  var audio = null, current = null;
+
+  function stop() {
+    if (!current) return;
+    audio.pause();
+    var box = current.closest(".c-pv");
+    box.classList.remove("c-pvPlaying");
+    box.style.removeProperty("--pv");
+    current.setAttribute("aria-label", "試聴（30秒）");
+    current = null;
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-preview]");
+    if (!btn) return;
+    var same = btn === current;
+    stop();
+    if (same) return;
+    if (!audio) {
+      audio = new Audio();
+      audio.addEventListener("ended", stop);
+      audio.addEventListener("timeupdate", function () {
+        if (current && audio.duration) current.closest(".c-pv").style.setProperty("--pv", (audio.currentTime / audio.duration).toFixed(3));
+      });
+    }
+    current = btn;
+    btn.closest(".c-pv").classList.add("c-pvPlaying");
+    btn.setAttribute("aria-label", "試聴を止める");
+    audio.src = btn.getAttribute("data-preview");
+    audio.play().then(function () {
+      gaEvent("preview_play", { track_id: btn.getAttribute("data-preview-id"), page_type: btn.getAttribute("data-page-type") });
+    }, function (err) {
+      if (current === btn) stop();
+      // 音源が読めない（配信が終わった・URL が変わった）ときは、押せないボタンを残さない。
+      // 読み込み中に別のボタンが押されて止めた場合（AbortError）は残す
+      if (err && err.name === "NotSupportedError") btn.remove();
+    });
+  });
+})();
+
+// ── いつも使うサービス ───────────────────────────────────
+// site.php の svc_pref_picker。localStorage（rt-svc）に保存し、<html data-svc> で一覧のボタンを切り替える（site.css）。
+// 次に開いたときは <head> の短いスクリプト（site.php の render_page）が描画の前に付ける。同じものをもう一度押すか「解除」で戻す
+
+document.addEventListener("click", function (e) {
+  var btn = e.target.closest("[data-svc-choice]");
+  if (!btn) return;
+  var root = document.documentElement;
+  var choice = btn.getAttribute("data-svc-choice");
+  if (choice === root.getAttribute("data-svc")) choice = "";
+  try {
+    if (choice) localStorage.setItem("rt-svc", choice); else localStorage.removeItem("rt-svc");
+  } catch (err) { /* 保存できなくても、このページの中では切り替える */ }
+  if (choice) root.setAttribute("data-svc", choice); else root.removeAttribute("data-svc");
+  gaEvent("set_preferred_service", { service: choice || "none" });
 });
 
 // ── 日付ページのカレンダー ───────────────────────────────

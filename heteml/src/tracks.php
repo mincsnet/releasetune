@@ -6,7 +6,7 @@
 // 一覧系（日付・アーティスト・検索）で取得する列。楽曲詳細でしか使わない長文（note_long）と出典は含めない
 const LIST_COLUMNS = [
     'id', 'title', 'artist', 'release_date', 'mmdd', 'jacket', 'note',
-    'spotify', 'apple', 'amazon', 'youtube', 'youtube_id', 'youtube_verified', 'track_count',
+    'spotify', 'apple', 'amazon', 'youtube', 'youtube_id', 'youtube_verified', 'track_count', 'preview_url',
 ];
 
 // 日付・アーティストの最大件数。Supabase の1回あたりの上限（1000行）で表示していた件数と揃える

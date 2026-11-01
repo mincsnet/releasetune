@@ -51,6 +51,7 @@ function spotify_artist_match(array $spotifyArtists, string $queryArtist): bool
 // 曲名が近いだけでは別アーティストの同名曲を拾うため、アーティスト名か発売日のどちらかの一致を必須にする。
 // アーティスト名は Accept-Language: ja で日本語表記を受け取って比べるが、日本語表記が登録されていない
 // アーティストもいるため、発売日（Spotifyで日まで分かる場合 YYYY-MM-DD のみ）の一致でも同じ曲とみなす。
+// $item は検索結果の曲（発売日は album.release_date）かアルバム（発売日は release_date）
 function spotify_is_same_track(array $item, string $title, string $artist, ?string $releaseDate): bool
 {
     $titleNorm = spotify_normalize($title);
@@ -61,38 +62,43 @@ function spotify_is_same_track(array $item, string $title, string $artist, ?stri
     if (spotify_artist_match($item['artists'] ?? [], $artist)) {
         return true;
     }
-    return $releaseDate !== null && $releaseDate !== '' && ($item['album']['release_date'] ?? null) === $releaseDate;
+    $spDate = $item['album']['release_date'] ?? $item['release_date'] ?? null;
+    return $releaseDate !== null && $releaseDate !== '' && $spDate === $releaseDate;
 }
 
 // 一致する曲が見つからなければ url は null（検索結果の先頭を代わりに採用すると、無関係な曲の直リンクが入るため。
 // 呼び出し側は検索URLのままにしておく）。429（QUOTA_EXCEEDED）なら retry_after に Retry-After の秒数が入り、
-// 呼び出し側はそこで打ち切る（これ以上呼んでも無駄なため）
-function spotify_search(string $token, string $title, string $artist, ?string $releaseDate): array
+// 呼び出し側はそこで打ち切る（これ以上呼んでも無駄なため）。
+// アルバム（$isAlbum。src/releases.php の release_kind）はまずアルバムとして探してアルバムへの直リンクにし、
+// 見つからなければ曲として探す（作品名と同じ名前の収録曲につながる）
+function spotify_search(string $token, string $title, string $artist, ?string $releaseDate, bool $isAlbum = false): array
 {
     // Apple Music の作品名に付く「 - Single」「 - EP」が残っていると Spotify の検索結果が0件になる
     $title = preg_replace('/\s+-\s+(Single|EP)$/iu', '', $title);
-    $queries = [
-        "track:\"{$title}\" artist:\"{$artist}\"",
-        "track:{$title} artist:{$artist}",
-        "{$artist} {$title}",
-    ];
-    foreach ($queries as $query) {
-        $url = 'https://api.spotify.com/v1/search?' . http_build_query([
-            'q' => $query, 'type' => 'track', 'market' => 'JP', 'limit' => '10',
-        ], '', '&', PHP_QUERY_RFC3986);
-        // Accept-Language を付けないとアーティスト名がローマ字表記（星野源 → Gen Hoshino）で返り、
-        // DB（Apple Musicの日本語表記）と一致しなくなる
-        $res = http_request('GET', $url, ["Authorization: Bearer {$token}", 'Accept-Language: ja']);
-        if ($res['status'] === 429) {
-            return ['url' => null, 'retry_after' => (int) ($res['headers']['retry-after'] ?? 5)];
-        }
-        if ($res['status'] !== 200) {
-            continue;
-        }
-        foreach (http_json($res)['tracks']['items'] ?? [] as $item) {
-            $link = $item['external_urls']['spotify'] ?? null;
-            if ($link && spotify_is_same_track($item, $title, $artist, $releaseDate)) {
-                return ['url' => $link, 'retry_after' => null];
+    foreach ($isAlbum ? ['album', 'track'] : ['track'] as $type) {
+        $queries = [
+            "{$type}:\"{$title}\" artist:\"{$artist}\"",
+            "{$type}:{$title} artist:{$artist}",
+            "{$artist} {$title}",
+        ];
+        foreach ($queries as $query) {
+            $url = 'https://api.spotify.com/v1/search?' . http_build_query([
+                'q' => $query, 'type' => $type, 'market' => 'JP', 'limit' => '10',
+            ], '', '&', PHP_QUERY_RFC3986);
+            // Accept-Language を付けないとアーティスト名がローマ字表記（星野源 → Gen Hoshino）で返り、
+            // DB（Apple Musicの日本語表記）と一致しなくなる
+            $res = http_request('GET', $url, ["Authorization: Bearer {$token}", 'Accept-Language: ja']);
+            if ($res['status'] === 429) {
+                return ['url' => null, 'retry_after' => (int) ($res['headers']['retry-after'] ?? 5)];
+            }
+            if ($res['status'] !== 200) {
+                continue;
+            }
+            foreach (http_json($res)["{$type}s"]['items'] ?? [] as $item) {
+                $link = is_array($item) ? ($item['external_urls']['spotify'] ?? null) : null; // 結果に null が混ざることがある
+                if ($link && spotify_is_same_track($item, $title, $artist, $releaseDate)) {
+                    return ['url' => $link, 'retry_after' => null];
+                }
             }
         }
     }

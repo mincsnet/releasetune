@@ -97,6 +97,18 @@ function jacket(?string $src, string $title, int $size = 68, bool $fullWidth = f
         . ($eager ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"') . ' src="' . h($src) . '" onerror="rtJacketError(this)"></div>';
 }
 
+// ジャケットの右下に重ねる試聴ボタン（30秒）。音源は押されたときに site.js が読む（一覧に <audio> を並べない）。
+// 試聴のない作品には出さない。$pageType は GA の preview_play の page_type（'top'・'date'・'track'）。
+// 置く側はジャケットとこのボタンを .c-pv で囲む（ボタンをジャケットのリンクの中に入れないため）
+function preview_button(array $t, string $pageType): string
+{
+    if (empty($t['preview_url'])) {
+        return '';
+    }
+    return '<button type="button" class="c-pvBtn" data-preview="' . h($t['preview_url']) . '" data-preview-id="' . h($t['id']) . '"'
+        . ' data-page-type="' . h($pageType) . '" aria-label="試聴（30秒）"></button>';
+}
+
 // クリック時に GA4 のイベントを送る属性（site.js が拾う）
 function ga_attrs(string $event, array $params): string
 {
@@ -169,6 +181,20 @@ function svc_wrap(array $t, string $class, bool $large): string
         . implode('', array_map(fn($i) => svc_link($i, $large), svc_items($t))) . '</div>';
 }
 
+// いつも使うサービスの選択（日付ページの注目曲の下）。選ぶと site.js が localStorage（rt-svc）に保存して <html data-svc> を付け、
+// 一覧のカードの小さいボタン（.c-svcRow）がそのサービスの1つだけになる（site.css。楽曲ページの大きいボタンは全部残す）
+const SVC_PREF_CHOICES = ['spotify' => 'Spotify', 'apple' => 'Apple Music', 'amazon' => 'Amazon Music', 'youtube' => 'YouTube'];
+
+function svc_pref_picker(): string
+{
+    $html = '<div class="c-svcPref"><span class="c-svcPrefLabel">いつも使うサービス</span>';
+    foreach (SVC_PREF_CHOICES as $key => $name) {
+        $html .= '<button type="button" class="c-svcPrefBtn" data-svc-choice="' . $key . '">' . h($name) . '</button>';
+    }
+    return $html . '<button type="button" class="c-svcPrefBtn c-svcPrefClear" data-svc-choice="">解除</button>'
+        . '<span class="c-svcPrefHint">選ぶと一覧のボタンがそのサービスだけになります</span></div>';
+}
+
 function svc_grid(array $t): string
 {
     return svc_wrap($t, 'c-svcGrid', true);
@@ -232,6 +258,8 @@ function render_page(array $meta, string $body, int $status = 200): void
         '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;family=Zen+Old+Mincho:wght@700&amp;display=swap">',
         '<link rel="stylesheet" href="', h($css), '">',
+        // いつも使うサービス（svc_pref_picker）を、描画の前に <html data-svc> に付ける（一覧のボタンが切り替わるときのちらつきを防ぐ）
+        '<script>try{var s=localStorage.getItem("rt-svc");if(/^(spotify|apple|amazon|youtube)$/.test(s))document.documentElement.setAttribute("data-svc",s)}catch(e){}</script>',
         '<script async src="https://www.googletagmanager.com/gtag/js?id=', GA_ID, '"></script>',
         "<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','", GA_ID, "');</script>",
         '<script src="', h($js), '" defer></script>',

@@ -1778,6 +1778,63 @@ button {
   font-size: 4rem;
 }
 
+/* 試聴（site.php の preview_button）。再生中は site.js が .c-pv に .c-pvPlaying を付け、--pv（0〜1）で進み具合を伝える */
+/* :where で詳細度を0にして、置き場所の指定（PC の注目曲のジャケットの position: sticky など）を上書きしない */
+:where(.c-pv) {
+  position: relative;
+}
+.c-pv > a {
+  display: block;
+}
+/* 一覧のカードでは、ジャケットの列がカードの高さまで伸びないように（ボタンがジャケットの外に出る） */
+.dp-card > .c-pv {
+  align-self: start;
+}
+.c-pvBtn {
+  position: absolute;
+  right: 6%;
+  bottom: 6%;
+  width: clamp(28px, 16%, 52px);
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.c-pvBtn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 7l8 5-8 5z'/%3E%3C/svg%3E") center / 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 7l8 5-8 5z'/%3E%3C/svg%3E") center / 100% no-repeat;
+}
+.c-pvBtn:hover,
+.c-pvBtn:focus-visible {
+  background: rgba(0, 0, 0, 0.85);
+}
+.c-pvPlaying .c-pvBtn {
+  background: var(--gold);
+}
+.c-pvPlaying .c-pvBtn::before {
+  background: #111;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 8h8v8H8z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 8h8v8H8z'/%3E%3C/svg%3E");
+}
+/* 再生中: ジャケットの下端に進み具合の線 */
+.c-pvPlaying::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: calc(var(--pv, 0) * 100%);
+  background: var(--gold);
+  pointer-events: none;
+}
+
 /* 配信サービスのボタンの並び（site.php の svc_grid・track_svc_links） */
 .c-svcGrid {
   display: grid;
@@ -1864,6 +1921,80 @@ button {
 .c-svc:hover {
   background: var(--surface2);
   border-color: #555;
+}
+
+/* いつも使うサービス（site.php の svc_pref_picker。選ぶと site.js が <html data-svc> を付ける） */
+.c-svcPref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.7rem;
+  color: var(--text-mute);
+}
+.c-svcPrefBtn {
+  font: inherit;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-sec);
+  cursor: pointer;
+}
+.c-svcPrefBtn:hover {
+  border-color: #555;
+}
+html[data-svc="spotify"] [data-svc-choice="spotify"],
+html[data-svc="apple"] [data-svc-choice="apple"],
+html[data-svc="amazon"] [data-svc-choice="amazon"],
+html[data-svc="youtube"] [data-svc-choice="youtube"] {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.c-svcPrefClear {
+  display: none;
+}
+html[data-svc] .c-svcPrefClear {
+  display: inline-block;
+}
+.c-svcPrefHint {
+  width: 100%;
+}
+/* 選んでいるとき、一覧のカード（.c-svcRow）はそのサービスのボタン1つを大きく出す。そのサービスのボタンがないカードは全部出す */
+html[data-svc="spotify"] .c-svcRow:has(.c-svcIcon-spotify) > .c-svc:not(:has(.c-svcIcon-spotify)),
+html[data-svc="apple"] .c-svcRow:has(.c-svcIcon-apple) > .c-svc:not(:has(.c-svcIcon-apple)),
+html[data-svc="amazon"] .c-svcRow:has(.c-svcIcon-amazon) > .c-svc:not(:has(.c-svcIcon-amazon)),
+html[data-svc="youtube"] .c-svcRow:has(.c-svcIcon-youtube) > .c-svc:not(:has(.c-svcIcon-youtube)) {
+  display: none;
+}
+html[data-svc="spotify"] .c-svcRow > .c-svc:has(.c-svcIcon-spotify),
+html[data-svc="apple"] .c-svcRow > .c-svc:has(.c-svcIcon-apple),
+html[data-svc="amazon"] .c-svcRow > .c-svc:has(.c-svcIcon-amazon),
+html[data-svc="youtube"] .c-svcRow > .c-svc:has(.c-svcIcon-youtube) {
+  font-size: 0.78rem;
+  padding: 7px 16px;
+  gap: 8px;
+}
+html[data-svc="spotify"] .c-svcRow > .c-svc:has(.c-svcIcon-spotify)::after,
+html[data-svc="apple"] .c-svcRow > .c-svc:has(.c-svcIcon-apple)::after,
+html[data-svc="amazon"] .c-svcRow > .c-svc:has(.c-svcIcon-amazon)::after,
+html[data-svc="youtube"] .c-svcRow > .c-svc:has(.c-svcIcon-youtube)::after {
+  content: "で聴く";
+  width: auto;
+  height: auto;
+  margin-left: 0;
+  background: none;
+  -webkit-mask: none;
+  mask: none;
+  color: var(--text-mute);
+  font-size: 0.7rem;
+}
+html[data-svc="spotify"] .c-svcRow > .c-svcSearch:has(.c-svcIcon-spotify)::after,
+html[data-svc="apple"] .c-svcRow > .c-svcSearch:has(.c-svcIcon-apple)::after,
+html[data-svc="amazon"] .c-svcRow > .c-svcSearch:has(.c-svcIcon-amazon)::after,
+html[data-svc="youtube"] .c-svcRow > .c-svcSearch:has(.c-svcIcon-youtube)::after {
+  content: "で探す";
 }
 
 /* ヘッダーの検索ボタン（components/SiteHeader.tsx） */

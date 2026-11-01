@@ -32,6 +32,13 @@ CREATE TABLE IF NOT EXISTS tracks (
   -- 新着は cron/new_releases.php、既存の作品は bin/backfill_track_count.php が Lookup API で入れる。
   -- 2026-11-01 に追加。既存の DB には ALTER TABLE tracks ADD COLUMN track_count SMALLINT NULL AFTER genre
   track_count       SMALLINT      NULL,
+  -- 試聴に使う曲（作品の収録曲のうち、曲名が作品名と同じもの、なければ1曲目）の Apple の曲 ID と30秒の試聴 URL。
+  -- 新着は cron/new_releases.php、既存の作品は bin/backfill_preview.php が Lookup API（entity=song）で入れる。
+  -- 2026-11-01 に追加。既存の DB には ALTER TABLE tracks ADD COLUMN apple_track_id BIGINT NULL AFTER track_count, ADD COLUMN preview_url TEXT NULL AFTER apple_track_id, ADD COLUMN spotify_checked_at DATETIME NULL AFTER preview_url
+  apple_track_id    BIGINT        NULL,
+  preview_url       TEXT          NULL,
+  -- Spotify で直リンクを探して見つからなかった日時（UTC）。cron/spotify_backfill.php はこの日から30日は探し直さない
+  spotify_checked_at DATETIME     NULL,
   -- アーティストページ（大文字小文字を区別しない一致）用。索引を効かせるため小文字化した値を持つ
   artist_lc         VARCHAR(1024) AS (LOWER(artist)) STORED,
   PRIMARY KEY (id),

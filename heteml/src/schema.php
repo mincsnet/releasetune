@@ -13,6 +13,7 @@ const TABLES = [
             'youtube_id' => 'text', 'youtube_verified' => 'bool',
             'note_long' => 'text', 'note_source_title' => 'text', 'note_source_url' => 'text',
             'genre' => 'text', 'track_count' => 'int',
+            'apple_track_id' => 'int', 'preview_url' => 'text', 'spotify_checked_at' => 'timestamp',
         ],
     ],
     'track_note_drafts' => [

@@ -227,6 +227,7 @@ function site_footer(): string
     $a = 'font-size:0.72rem;color:#555;text-decoration:none';
     return '<footer style="border-top:1px solid #2a2a2a;padding:20px;text-align:center;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap">'
         . '<span style="font-size:0.72rem;color:#444">© 2026 Release Tune</span>'
+        . '<a href="' . h(u('/about')) . '" style="' . $a . '">このサイトについて</a>'
         . '<a href="' . h(u('/terms')) . '" style="' . $a . '">利用規約</a>'
         . '<a href="' . h(u('/privacy')) . '" style="' . $a . '">プライバシーポリシー</a>'
         . '<a href="' . X_URL . '" target="_blank" rel="noopener noreferrer" style="' . $a . '">X @releasetune</a>'

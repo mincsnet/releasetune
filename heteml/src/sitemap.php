@@ -39,10 +39,10 @@ function sitemap_index(): void
     sitemap_output('sitemapindex', 'sitemap', array_map(fn($f) => SITE_ORIGIN . "/{$f}", $files));
 }
 
-// トップと 366 日（2月29日を含む）
+// トップ・このサイトについてと 366 日（2月29日を含む）
 function sitemap_dates(): void
 {
-    $urls = [SITE_ORIGIN . '/'];
+    $urls = [SITE_ORIGIN . '/', SITE_ORIGIN . '/about'];
     for ($d = new DateTimeImmutable('2024-01-01'); $d->format('Y') === '2024'; $d = $d->modify('+1 day')) {
         $urls[] = SITE_ORIGIN . '/date/' . $d->format('m-d');
     }

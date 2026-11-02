@@ -47,6 +47,8 @@ try {
         page_artist($_GET['name']);
     } elseif ($path === '/search') {
         page_search(is_string($_GET['q'] ?? null) ? $_GET['q'] : '');
+    } elseif ($path === '/about') {
+        page_about();
     } elseif ($path === '/terms' || $path === '/privacy') {
         page_legal(substr($path, 1));
     } else {

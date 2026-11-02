@@ -478,6 +478,36 @@ function page_legal(string $kind): void
     render_page(basic_meta(page_title($title), $description), page_wrap($html));
 }
 
+// ── このサイトについて ─────────────────────────────────────
+
+// 運営者名など未確定の情報は書かない（運営者が最終確認する前提の素材）
+function page_about(): void
+{
+    $x = '<a href="' . X_URL . '" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">@releasetune</a>';
+    $sections = [
+        ['Release Tune とは', '<p>「今日はあの曲のリリース日」をテーマに、同じ日付にリリースされた曲を、年代を超えて集めたサイトです。日付・曲・アーティストごとにリリースの情報をまとめ、気になる1曲は配信サービスへのリンクからそのまま聴きに行けます。</p>'
+            . '<p>日付ページでは、その日の注目曲とピックを紹介しています。曲のページからは、同じアーティストのほかのリリース記念日もたどれます。</p>'],
+        ['データの出典', '<ul style="padding-left:1.2em">'
+            . '<li>曲名・アーティスト名・リリース日・ジャケット画像・30秒の試聴: Apple の iTunes Search API</li>'
+            . '<li>配信サービスへのリンク: Apple Music・Spotify・Amazon Music・YouTube Music（Spotify・YouTube は各サービスの API で曲を探して結び付けています。見つからない曲は各サービスの検索結果へのリンクです）</li>'
+            . '<li>曲の紹介文: Wikipedia（出典の記事を各曲のページに示しています）</li>'
+            . '</ul><p>リリース日は配信サービスに登録された日付です。昔の作品をまとめて配信したものなどは、本来の発売日と異なる場合があります。</p>'
+            . '<p>Music data provided by Apple Music / iTunes.</p>'],
+        ['公式アカウント', '<p>新しいリリース記念日の紹介やお知らせは、X（旧Twitter）の ' . $x . ' で発信しています。</p>'],
+        ['お問い合わせ', '<p>データの誤り・ご意見などは、X（旧Twitter）アカウント ' . $x . ' のダイレクトメッセージにてお受けします。</p>'],
+    ];
+    $html = '<div style="max-width:680px;margin:0 auto;padding:40px 20px 80px">'
+        . '<h1 style="font-family:var(--font-display);font-size:1.6rem;font-weight:700;color:var(--text-pri);margin-bottom:40px">このサイトについて</h1>'
+        . implode('', array_map(fn($s) => legal_section($s[0], $s[1]), $sections))
+        . '<div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap">'
+        . '<a href="' . h(u('/terms')) . '" style="font-size:0.8rem;color:var(--text-mute);text-decoration:none">利用規約</a>'
+        . '<a href="' . h(u('/privacy')) . '" style="font-size:0.8rem;color:var(--text-mute);text-decoration:none">プライバシーポリシー</a>'
+        . '<a href="' . h(u('/')) . '" style="font-size:0.8rem;color:var(--text-mute);text-decoration:none">← トップページに戻る</a></div></div>';
+    $meta = basic_meta(page_title('このサイトについて'), 'Release Tuneについて。サービスの内容、データの出典、お問い合わせ先をご案内します。');
+    array_push($meta['tags'], ['link', 'canonical', SITE_ORIGIN . '/about'], ['property', 'og:url', SITE_ORIGIN . '/about']);
+    render_page($meta, page_wrap($html));
+}
+
 // ── 404 ─────────────────────────────────────────────────
 
 function page_not_found(): void

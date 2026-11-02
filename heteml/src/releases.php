@@ -382,3 +382,16 @@ function featured_track(string $mmdd, array $tracks): ?array
 {
     return day_view($mmdd, $tracks)['picks'][0]['track'] ?? null;
 }
+
+// 366日（2月29日を含む）のピック（注目曲を含む）に選ばれている作品の id（cron/spotify_backfill.php の優先順に使う）
+function pick_track_ids(): array
+{
+    $ids = [];
+    for ($d = new DateTimeImmutable('2024-01-01'); $d->format('Y') === '2024'; $d = $d->modify('+1 day')) {
+        $mmdd = $d->format('m-d');
+        foreach (day_view($mmdd, tracks_by_mmdd($mmdd))['picks'] as $u) {
+            $ids[$u['track']['id']] = true;
+        }
+    }
+    return $ids;
+}

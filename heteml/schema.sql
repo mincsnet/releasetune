@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS tracks (
   preview_url       TEXT          NULL,
   -- Spotify で直リンクを探して見つからなかった日時（UTC）。cron/spotify_backfill.php はこの日から30日は探し直さない
   spotify_checked_at DATETIME     NULL,
+  -- Spotify の直リンク探しの段階（cron/spotify_backfill.php）。0 未検索、1 最初の検索1回で見つからず、2 すべての検索で見つからず。
+  -- 2026-11-03 に追加。既存の DB には ALTER TABLE tracks ADD COLUMN spotify_search_stage TINYINT NOT NULL DEFAULT 0 AFTER spotify_checked_at
+  -- （追加のときに、すでに探して見つからなかった曲は UPDATE tracks SET spotify_search_stage = 2 WHERE spotify_checked_at IS NOT NULL）
+  spotify_search_stage TINYINT    NOT NULL DEFAULT 0,
   -- アーティストページ（大文字小文字を区別しない一致）用。索引を効かせるため小文字化した値を持つ
   artist_lc         VARCHAR(1024) AS (LOWER(artist)) STORED,
   PRIMARY KEY (id),

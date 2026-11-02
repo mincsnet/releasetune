@@ -1,11 +1,16 @@
 #!/usr/local/bin/php8.3
 <?php
 // Spotify 直リンクの補完（毎日 JST 7:00、ヘテムルの cron から実行）。app/api/cron/spotify-backfill/route.ts からの移植。
-// Spotify Web API の上限: Vercel 時代（2026-08-17〜18）は約200〜260リクエストで QUOTA_EXCEEDED になったが、
-// ヘテムルに移ってからは1日200曲（数百リクエスト）で一度も429が出ていない（2026-10-15〜11-01）。
-// 1日の件数を増やし、429を検出したらそこで打ち切る。件数ではなく経過時間でも打ち切る（tasks/lessons.md）。
-// 見つからなかった曲は spotify_checked_at に日時を入れ、RECHECK_DAYS 日は探し直さない（毎日の枠を未検索の曲に使う）。
-// アルバムはアルバムへの直リンクを探す（src/spotify.php の spotify_search）。
+// Spotify Web API の上限: Vercel 時代（2026-08-17〜18）は約200〜260リクエストで QUOTA_EXCEEDED になった。
+// ヘテムルでは1日200曲で一度も429が出なかった（2026-10-15〜11-01）が、11-02 に上限を1000曲にしたら
+// 299曲目で429・約24時間の停止になった。そのため1日200曲に戻し、問い合わせの数と429の時点を毎回ログに残す。
+//
+// 1曲あたりの問い合わせを減らすため、2段階で探す（tracks.spotify_search_stage）:
+//   第1パス（stage 0 → 1）: 最初の厳密な検索の1回だけ
+//   第2パス（stage 1 → 2）: 第1パスで見つからなかった曲を、残りの検索で探す。第1パスの残りがなくなってから
+//   探し直し（stage 2）: すべての検索で見つからなかった曲は RECHECK_DAYS 日たってから、もう一度すべての検索で探す
+// 429 で止められている間（src/spotify.php の spotify_blocked_until）は1回も問い合わせずに終わる。
+// 停止の解除が WAIT_MAX_SEC 以内なら、解除まで待ってから始める（7:00 の実行が解除の直前に始まる場合）。
 //
 //   php heteml/cron/spotify_backfill.php                     本実行
 //   php heteml/cron/spotify_backfill.php --dry-run --limit=5 5曲だけ検索して結果を表示する（DB に書かない。クォータは使う）
@@ -15,21 +20,45 @@ require_once __DIR__ . '/../src/cron.php';
 require_once __DIR__ . '/../src/spotify.php';
 require_once __DIR__ . '/../src/releases.php';
 
-const FETCH_LIMIT = 1000;     // 一度に取得する候補件数の上限（2026-11-01 に200から増やした）
-const TIME_BUDGET_SEC = 1500; // 1曲あたり約0.6秒（2026-10 のログ: 200曲で約120秒）なので、1000曲に足りる長さ
-const RECHECK_DAYS = 30;      // 見つからなかった曲を探し直すまでの日数
-const SLEEP_MS = 80;       // Spotify 検索リクエスト間の間隔
+const DAILY_LIMIT = 200;      // 1日に探す曲数（2026-11-03 に1000から戻した。429 なしの実績がある数）
+const TIME_BUDGET_SEC = 1500; // 問い合わせの間隔（1秒）を入れても200曲は約4分で終わる
+const RECHECK_DAYS = 30;      // すべての検索で見つからなかった曲を探し直すまでの日数
+const WAIT_MAX_SEC = 900;     // 停止の解除がこれ以内なら待ってから始める
 
-// 直リンク（曲かアルバム）がまだ入っておらず、最近探していない曲
-const PENDING_WHERE = "(spotify IS NULL OR (spotify NOT LIKE '%open.spotify.com/track/%' AND spotify NOT LIKE '%open.spotify.com/album/%')) AND (spotify_checked_at IS NULL OR spotify_checked_at < UTC_TIMESTAMP() - INTERVAL " . RECHECK_DAYS . " DAY)";
+// 直リンク（曲かアルバム）がまだ入っていない曲
+const NOT_DIRECT = "(spotify IS NULL OR (spotify NOT LIKE '%open.spotify.com/track/%' AND spotify NOT LIKE '%open.spotify.com/album/%'))";
+// 探す順の待ち行列（上から順に、DAILY_LIMIT に達するまで取る）。最近のリリース（新着）を先に、あとは id 順
+const QUEUES = [
+    'first'   => ['pass' => 'first', 'where' => NOT_DIRECT . ' AND spotify_search_stage = 0', 'nextStage' => 1],
+    'rest'    => ['pass' => 'rest', 'where' => NOT_DIRECT . ' AND spotify_search_stage = 1', 'nextStage' => 2],
+    'recheck' => ['pass' => 'all', 'where' => NOT_DIRECT . ' AND spotify_search_stage = 2 AND spotify_checked_at < UTC_TIMESTAMP() - INTERVAL ' . RECHECK_DAYS . ' DAY', 'nextStage' => 2],
+];
 
 cron_main('spotify_backfill', function (array $args): array {
     $dryRun = in_array('--dry-run', $args, true);
-    $fetchLimit = FETCH_LIMIT;
+    $limit = DAILY_LIMIT;
     foreach ($args as $a) {
         if (preg_match('/^--limit=(\d+)$/', $a, $m)) {
-            $fetchLimit = max(1, min((int) $m[1], FETCH_LIMIT));
+            $limit = max(1, min((int) $m[1], DAILY_LIMIT));
         }
+    }
+
+    $pdo = db();
+    $queued = [];
+    foreach (QUEUES as $name => $q) {
+        $queued[$name] = (int) $pdo->query('SELECT COUNT(*) FROM tracks WHERE ' . $q['where'])->fetchColumn();
+    }
+
+    // 停止中は問い合わせない。解除が近ければ待つ
+    $waitedSec = 0;
+    $resumeAt = spotify_blocked_until();
+    if ($resumeAt !== null && $resumeAt - time() <= WAIT_MAX_SEC) {
+        $waitedSec = $resumeAt - time();
+        sleep($waitedSec);
+        $resumeAt = spotify_blocked_until();
+    }
+    if ($resumeAt !== null) {
+        return ['message' => 'Skipped: Spotify is blocked (429) until ' . date('c', $resumeAt), 'queued' => $queued, 'spotify' => spotify_stats()];
     }
 
     $token = spotify_token();
@@ -37,34 +66,42 @@ cron_main('spotify_backfill', function (array $args): array {
         throw new RuntimeException('Spotify token unavailable');
     }
 
-    // 見つからなかった曲は spotify_checked_at で対象から外れるので、まだ探していない曲から id 順に進める
-    // （以前は外せなかったので、同じ曲で枠を使い切らないよう開始位置をランダムにずらしていた）
-    $pdo = db();
-    $pendingCount = (int) $pdo->query('SELECT COUNT(*) FROM tracks WHERE ' . PENDING_WHERE)->fetchColumn();
-    $stmt = $pdo->prepare('SELECT id, title, artist, release_date, track_count FROM tracks WHERE ' . PENDING_WHERE
-        . ' ORDER BY spotify_checked_at IS NOT NULL, id LIMIT ?');
-    $stmt->execute([$fetchLimit]);
-    $pending = $stmt->fetchAll();
+    $targets = [];
+    foreach (QUEUES as $name => $q) {
+        if (count($targets) >= $limit) {
+            break;
+        }
+        $stmt = $pdo->prepare('SELECT id, title, artist, release_date, track_count FROM tracks WHERE ' . $q['where']
+            . ' ORDER BY release_date >= CURDATE() - INTERVAL 30 DAY DESC, id LIMIT ?');
+        $stmt->execute([$limit - count($targets)]);
+        foreach ($stmt->fetchAll() as $t) {
+            $targets[] = ['queue' => $name] + $t;
+        }
+    }
 
     $update = $pdo->prepare('UPDATE tracks SET spotify = ? WHERE id = ?');
-    $markChecked = $pdo->prepare('UPDATE tracks SET spotify_checked_at = UTC_TIMESTAMP() WHERE id = ?');
+    $markSearched = $pdo->prepare('UPDATE tracks SET spotify_search_stage = ?, spotify_checked_at = UTC_TIMESTAMP() WHERE id = ?');
     $startedAt = microtime(true);
+    $byQueue = array_fill_keys(array_keys(QUEUES), ['processed' => 0, 'found' => 0]);
+    $byStep = []; // 何番目の検索で見つかったか（1 が最初の厳密な検索）
     $processed = $updated = $notFound = 0;
     $retryAfter = null;
     $timeBudgetExceeded = false;
     $found = [];
 
-    foreach ($pending as $t) {
+    foreach ($targets as $t) {
         if (microtime(true) - $startedAt > TIME_BUDGET_SEC) {
             $timeBudgetExceeded = true;
             break;
         }
-        $result = spotify_search($token, $t['title'], $t['artist'], $t['release_date'], release_kind($t) === 'album');
+        $q = QUEUES[$t['queue']];
+        $result = spotify_search($token, $t['title'], $t['artist'], $t['release_date'], release_kind($t) === 'album', $q['pass']);
         if ($result['retry_after'] !== null) {
             $retryAfter = $result['retry_after'];
             break;
         }
         $processed++;
+        $byQueue[$t['queue']]['processed']++;
         if ($result['url'] !== null) {
             if ($dryRun) {
                 $found[] = "{$t['artist']} | {$t['title']} → {$result['url']}";
@@ -72,24 +109,33 @@ cron_main('spotify_backfill', function (array $args): array {
                 $update->execute([$result['url'], $t['id']]);
             }
             $updated++;
+            $byQueue[$t['queue']]['found']++;
+            $byStep[$result['step']] = ($byStep[$result['step']] ?? 0) + 1;
         } else {
             if (!$dryRun) {
-                $markChecked->execute([$t['id']]);
+                $markSearched->execute([$q['nextStage'], $t['id']]);
             }
             $notFound++;
         }
-        usleep(SLEEP_MS * 1000);
     }
 
+    $stats = spotify_stats();
+    ksort($byStep);
     $message = $retryAfter !== null ? 'Stopped: Spotify quota exceeded'
         : ($timeBudgetExceeded ? 'Stopped: time budget reached' : 'Batch complete');
     return [
         'message'   => $dryRun ? "Dry run (nothing written): {$message}" : $message,
-        'pending'   => $pendingCount,
-        'fetched'   => count($pending),
+        'waitedSec' => $waitedSec,
+        'queued'    => $queued,
+        'fetched'   => count($targets),
         'processed' => $processed,
         'updated'   => $updated,
         'notFound'  => $notFound,
+        'byQueue'   => $byQueue,
+        'foundByStep' => $byStep,
+        // token を除いた検索だけの平均
+        'searchRequestsPerTrack' => $processed > 0 ? round(($stats['byEndpoint']['search'] ?? 0) / $processed, 2) : null,
+        'spotify'   => $stats,
         'quotaExceededRetryAfterSeconds' => $retryAfter,
         'found'     => $dryRun ? $found : null,
         'revalidated' => $updated > 0 && !$dryRun ? revalidate_site() : false,

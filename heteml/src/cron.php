@@ -14,17 +14,21 @@ function cron_main(string $name, callable $job): void
         mkdir($logDir, 0700, true);
     }
     // 前回の実行が終わっていなければ何もしない（ロックはプロセスが終われば自動で外れる）
+    $args = array_slice($GLOBALS['argv'], 1);
+    // 起動元: check は書き込みなしの確認実行（--dry-run）、manual は SSH から手で実行、cron はヘテムルの cron
+    // （cron の環境には SSH_CONNECTION がない）
+    $origin = in_array('--dry-run', $args, true) ? 'check' : (getenv('SSH_CONNECTION') ? 'manual' : 'cron');
     $lock = fopen("{$logDir}/{$name}.lock", 'c');
     if (!flock($lock, LOCK_EX | LOCK_NB)) {
-        cron_log($name, ['message' => 'Skipped: previous run is still running']);
+        cron_log($name, ['origin' => $origin, 'message' => 'Skipped: previous run is still running']);
         exit(0);
     }
     $startedAt = microtime(true);
     $code = 0;
     try {
-        $result = $job(array_slice($GLOBALS['argv'], 1));
+        $result = ['origin' => $origin, 'startedAt' => date('c', (int) $startedAt)] + $job($args);
     } catch (Throwable $e) {
-        $result = ['error' => get_class($e) . ': ' . $e->getMessage()];
+        $result = ['origin' => $origin, 'startedAt' => date('c', (int) $startedAt), 'error' => get_class($e) . ': ' . $e->getMessage()];
         $code = 1;
     }
     $result['elapsedMs'] = (int) round((microtime(true) - $startedAt) * 1000);

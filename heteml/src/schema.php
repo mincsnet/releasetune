@@ -14,6 +14,7 @@ const TABLES = [
             'note_long' => 'text', 'note_source_title' => 'text', 'note_source_url' => 'text',
             'genre' => 'text', 'track_count' => 'int',
             'apple_track_id' => 'int', 'preview_url' => 'text', 'spotify_checked_at' => 'timestamp',
+            'spotify_search_stage' => 'int',
         ],
     ],
     'track_note_drafts' => [

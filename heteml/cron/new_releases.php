@@ -72,8 +72,11 @@ cron_main('new_releases', function (array $args): array {
     $enriched = 0;
     $counted = 0;
     $previewed = 0;
+    $spotifySkipped = false;
     if ($newRows && !$dryRun) {
-        $token = spotify_token();
+        // Spotify に止められている間（429）は問い合わせない。直リンクは毎日の補完（spotify_backfill の第1パス）が後で探す
+        $spotifySkipped = spotify_blocked_until() !== null;
+        $token = $spotifySkipped ? null : spotify_token();
         $update = fn(array $set, string $id) => $pdo
             ->prepare('UPDATE tracks SET ' . implode(', ', array_map(fn($c) => "`{$c}` = ?", array_keys($set))) . ' WHERE id = ?')
             ->execute([...array_values($set), $id]);
@@ -94,11 +97,16 @@ cron_main('new_releases', function (array $args): array {
                 $set['preview_url'] = $preview['previewUrl'];
                 $previewed++;
             }
-            if ($token !== null) {
+            // 途中で 429 になったら、残りの曲では問い合わせない
+            if ($token !== null && spotify_blocked_until() === null) {
                 $isAlbum = release_kind(['title' => $r['title'], 'track_count' => $set['track_count'] ?? null]) === 'album';
                 $sp = spotify_search($token, $r['title'], $r['artist'], $r['release_date'], $isAlbum);
                 if ($sp['url'] !== null) {
                     $set['spotify'] = $sp['url'];
+                } elseif ($sp['retry_after'] === null) {
+                    // すべての検索で見つからなかった。補完は30日後に探し直す
+                    $set['spotify_search_stage'] = 2;
+                    $set['spotify_checked_at'] = gmdate('Y-m-d H:i:s');
                 }
             }
             $yt = youtube_search($r['title'], $r['artist']);
@@ -121,6 +129,8 @@ cron_main('new_releases', function (array $args): array {
         'enriched'    => $enriched,
         'counted'     => $counted,
         'previewed'   => $previewed,
+        'spotifySkipped' => $spotifySkipped,
+        'spotify'     => spotify_stats(),
         'sample'      => array_map(fn($r) => "{$r['artist']} | {$r['title']} | {$r['genre']}", array_slice($newRows, 0, 3)),
         'revalidated' => $newRows && !$dryRun ? revalidate_site() : false,
     ];

@@ -260,6 +260,16 @@
   - 第6節の Phase 3 回帰（本番）: `/date/10-31` の ▶ 10個（着手前と同じ）Pass／いつも使うサービス（Apple Music で68行すべてが1つに畳まれ、解除で戻る）Pass／曲ページで試聴の再生・停止と `preview_play`（page_type: track）Pass／回帰 URL セットすべて 200・存在しない曲と日付は 404、全ページのフッターに /about Pass。コンソールのエラーなし
 - [ ] main へのマージ・push（運営者の指示待ち）
 
+**S4 優先順とブランチ統合**（2026-11-03、`~/Downloads/releasetune-s4-and-branch-unification.md`）
+- [x] S4（コミット `38b431e`、01:30 に本番へ部分反映）: 第1パスの順番を 最近30日の新着 → ピック（366日分、注目曲を含む）→ 次のリリース記念日が近い順 → id。ログに byPriority（段ごとの件数・見つかった数）。200曲/日・1秒間隔・停止の尊重・第1パスは1回、は変えていない。本番の並び（読み取りで確認）: 新着 118・ピック 2,667・その他 25,987。11-03 の200曲は新着118＋ピック82の予定
+- [ ] ピック 2,667件が終わったら（約14日）、ピック枠の直リンク率の試算（26% → 約72%）と実績の差を報告
+- アカウント枠の共有ルール: cron 以外で同じ Spotify アカウントの API を呼んだら、日時と概算リクエスト数を記録・報告する。この日の作業では本物の Spotify は呼んでいない（手元の確認は模擬サーバー）
+- [x] Step 1 差分の棚卸し: 本番 35ファイル・ブランチ 32ファイル、一致 29。違いは buffer_schedule.php・buffer.php・share.php（本番だけ）、config.sample.php・site.js・schema.sql（両方にあって中身が違う）。Buffer のブランチ `claude/buffer-scheduled-posts-f0604e`（`15e9911`、未コミットなし）の6ファイルは本番と同じハッシュ
+- [x] Step 2 取り込み: Buffer のブランチをマージ（`17fdfa8`、衝突なし）。site.js は試聴ボタンの変更と Buffer のコメント行の両方が入った
+- [x] Step 3 diff-zero: マージ後の違いは schema.sql だけ（ブランチの方が新しい: Buffer の表＋今日の spotify_search_stage 列の説明。実行時には読まれず、手で使う bin/import_snapshot.php だけが読む）。本番の版がマージ元と同じことを確かめて送り、**35ファイルすべてハッシュ一致・差分ゼロ**。対象外: config.php・logs/・cache/（サーバーだけにある）、tasks/ などの記録（heteml/ の外）
+- [ ] Step 4 main へのマージと push（運営者の最終確認待ち）
+- 暫定ルール: deploy.sh での全体送信は禁止、部分反映の前に本番の版と比べる（tasks/lessons.md）
+
 **試聴ボタンの文言**（2026-11-03、`~/Downloads/releasetune-preview-button-label.md`）— コミット `0060b1d`。**本番反映 2026-11-03 01:21 JST**（preview_play の変更前後はこの時刻で分ける）
 - 「▶ 試聴する（30秒）」／再生中「⏸ 停止する」。文言は `site.php` の `PREVIEW_LABELS` の1か所。アイコンは CSS。aria-label は表示と同じ。GA の preview_play と値は変更なし
 - 置き場所: ピック枠はタグの下（68px のジャケットに文言が入らない）、注目曲は見出しの下（360px でジャケットに重ねると切れた）、楽曲ページはジャケットの左下に重ねて一段大きく

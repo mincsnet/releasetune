@@ -1,8 +1,39 @@
 # ReleaseTune 開発タスク
 
-最終更新: 2026-11-01
+最終更新: 2026-11-02
 
 このファイルはプロジェクトの開発状況・残タスクの正本です。新しいチャットセッションでもこのファイルを読めば経緯と優先順位が分かるようにしています。作業を進めたら随時更新してください。
+
+## 進行中: Buffer で X に毎日の予約投稿（2026-11-02〜）
+
+毎日 7:00・7:15・7:30・7:45・18:00・18:15・18:30・18:45 に、その日がリリース日の作品を最大8作品、X に紹介する（2026-11-02 ユーザー決定）。
+
+### 方針
+- Buffer の新しい API（GraphQL、`https://api.buffer.com`、`Authorization: Bearer <API キー>`）の `createPost` に `mode: customScheduled`・`dueAt`（UTC）を渡して予約する。無料プランで使える（API キー1本、1日600回）
+- 無料プランは予約が1チャンネル10件まで。毎朝 6:00 に8件を入れる時点で前日分（最後は 18:45）は投稿済みなので収まる
+- 実行はヘテムルの cron（`heteml/cron/buffer_schedule.php`、毎日 JST 6:00）。0:00 の新着取得のあと
+- 曲選び: 日付ページのピック（`day_view`、同じアーティストは1作品まで、点数順）の上位8作品をそのまま使う。足りない日はある分だけ
+- 文面: 楽曲ページの「X でシェア」と同じ（`site.js` の `buildShareText` を `heteml/src/share.php` に移す。リリース日の当日なのでデビュー・キリ周年・当日・今年の出し分け）＋ URL（楽曲ページのカード画像が出る）。タグはアーティスト名と #ReleaseTune
+- 二重予約の防止: 予約した枠を `buffer_posts` テーブル（日付・時刻の枠・作品 ID・Buffer の投稿 ID）に残し、同じ日に2回動いても残りの枠だけ入れる。時刻を過ぎた枠は飛ばす
+- 設定: `config.php` に `buffer_api_key`・`buffer_channel_id`（`make_config.py` で .env の `BUFFER_API_KEY`・`BUFFER_CHANNEL_ID` から）
+
+### 手順
+- [x] ユーザー: Buffer のアカウント作成・X のアカウント接続・API キー発行（2026-11-02。権限は account:read・posts:read・posts:write のみ、**有効期限1年＝2027-11-02 ごろ。切れる前に作り直して .env と config.php を更新**。切れると cron のログに `Buffer API failed: 401`）
+- [x] `src/share.php`（シェア文）・`src/buffer.php`（API）・`cron/buffer_schedule.php`（`--dry-run`・`--date=YYYY-MM-DD`・`--channels`）・`buffer_posts` テーブル（2026-11-02、未コミット）。`config.sample.php`・`make_config.py` に `buffer_api_key`・`buffer_channel_id`（.env になければ空）
+- [x] 手元で確認（2026-11-02、手元の DB）
+  - `--dry-run`: 11/2・10/31・2/29・11/19 で8作品ずつ。文面は 124〜204字（X の数え方）。10/31 は m-flo（25周年）・JULEPS（デビュー）・桑田佳祐（当日）など、日付ページのピックと同じ顔ぶれ
+  - サイトの JS（`buildShareText`）と PHP（`share_text`）の文面: 3日おきの1年分の全作品＋別の日に押した場合＋長い曲名で、**11,844件すべて一致**
+  - 二重予約の防止: `buffer_posts` に2枠を入れておくと残り6枠だけ、予約済みの作品は飛ばして次のピックを入れる。過去の日付は全枠を `skipped`
+  - API キーが空の本実行は `Buffer API failed: 401 Access token is not valid` で止まり、DB に何も書かない
+  - 手元の DB に `buffer_posts` を作成済み（確認後に中身は消した）
+- [x] API キーを入れて `--channels` でチャンネル ID を確認（2026-11-02）: X の「ReleaseTune」1つ（`6ae82c77e29c69a171344f87`、.env の `BUFFER_CHANNEL_ID` に追記）。`account:read` だけで一覧が取れた
+- [x] 試しに1件だけ予約（2026-11-02、`buffer_posts` には書かずに `buffer_schedule_post` を直接呼んだ）: 11/9 7:00 に中村雅俊「WITHOUT YOU」（30周年）。API で読み直すと `status: scheduled`・`dueAt: 2026-11-08T22:00:00.000Z`（＝JST 11/9 7:00）、絵文字・改行・タグ・URL もそのまま。投稿 ID `6ae85271dd7a4869734cc8f4`
+  - **この予約は本番の cron と枠が重なる（11/9 7:00 に同じ作品）ので、Buffer の画面で確認したら消す**
+- [ ] ユーザー: Buffer の予約一覧で上の1件の見え方（リンクカード）を確認し、消す
+- [ ] 本番: `buffer_posts` を作る → `deploy.sh` → ユーザーがコントロールパネルで cron を登録（`0 6 * * *`）
+
+### あとで決める
+- ピックは日付で決まるので、同じ日は毎年ほぼ同じ8作品になる。前の年に投稿した作品を後ろに回すかは1年たつ前に決める
 
 ## 計画中: サイト改善（外部の改善指示書をもとに、2026-10-31〜）
 

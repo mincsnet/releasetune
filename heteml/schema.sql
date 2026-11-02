@@ -67,3 +67,14 @@ CREATE TABLE IF NOT EXISTS track_note_drafts (
   KEY idx_drafts_batch (batch_id),
   KEY idx_drafts_wiki_title (wiki_title)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- Buffer に入れた X の予約投稿（cron/buffer_schedule.php）。同じ日に2回動いても同じ枠を二重に予約しないための記録。
+-- 2026-11-02 に追加。既存の DB にはこの CREATE TABLE をそのまま実行する
+CREATE TABLE IF NOT EXISTS buffer_posts (
+  post_date      DATE        NOT NULL,
+  slot           CHAR(5)     NOT NULL, -- 投稿時刻（JST、例: 07:00）
+  track_id       VARCHAR(64) NOT NULL,
+  buffer_post_id VARCHAR(64) NOT NULL,
+  created_at     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- UTC（src/db.php）
+  PRIMARY KEY (post_date, slot)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

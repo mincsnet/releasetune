@@ -21,6 +21,10 @@ return [
     'spotify_client_secret' => '',
     'youtube_api_key'       => '',
 
+    // X の予約投稿（cron/buffer_schedule.php）。API キーは Buffer の設定画面で発行、チャンネル ID は --channels で調べる
+    'buffer_api_key'    => '',
+    'buffer_channel_id' => '',
+
     // データを書き換えた後に呼ぶ、Vercel のキャッシュ削除（/api/revalidate）。第2段階で空にする
     'revalidate_url' => 'https://www.releasetune.com/api/revalidate',
     'cron_secret'    => '',

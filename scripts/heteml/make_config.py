@@ -2,7 +2,7 @@
 ヘテムルのサーバー用設定ファイル（heteml/config.php）を作ってサーバーに置く
 =======================================================================
 
-.env の値（API トークン、Spotify・YouTube のキー、CRON_SECRET）と、ここで入力する DB の接続情報から
+.env の値（API トークン、Spotify・YouTube・Buffer のキー、CRON_SECRET）と、ここで入力する DB の接続情報から
 config.php を作り、SSH でサーバーに直接書き込む（手元にファイルは残さない。パスワードは画面に出さない）。
 
   python3 scripts/heteml/make_config.py --ssh heteml --remote releasetune/heteml/config.php \
@@ -68,6 +68,8 @@ return [
     'youtube_api_key'       => {php_str(env['YOUTUBE_API_KEY'])},
     'revalidate_url' => {php_str(args.revalidate_url)},
     'cron_secret'    => {php_str(env['CRON_SECRET'])},
+    'buffer_api_key'    => {php_str(env.get('BUFFER_API_KEY', ''))},
+    'buffer_channel_id' => {php_str(env.get('BUFFER_CHANNEL_ID', ''))},
     'log_dir' => __DIR__ . '/logs',
 ];
 """

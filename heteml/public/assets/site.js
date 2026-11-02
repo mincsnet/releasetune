@@ -188,6 +188,7 @@ document.addEventListener("click", function (e) {
 })();
 
 // ── シェア ───────────────────────────────────────────────
+// Buffer の予約投稿（cron/buffer_schedule.php）も同じ文面にするため、heteml/src/share.php に同じ処理がある。片方を直したらもう片方も直す
 
 // lib/utils.ts の artistHashtag と同じ。共演名義は1つのタグにすると別の言葉になるので作らない
 function artistHashtag(artist) {

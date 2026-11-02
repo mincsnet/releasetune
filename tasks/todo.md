@@ -34,7 +34,9 @@
   - 本番の DB に `buffer_posts` を作成（0件）→ `deploy.sh` → サーバーで php8.3 の構文チェック、cron 3本とも 700、`--dry-run --date=2026-11-03` で手元と同じ8作品（嵐「A・RA・SHI」ほか）
   - 1回目の `deploy.sh` は rsync の後の chmod が SSH の不調で黙って失敗していた（cron が 755 のまま）。もう一度実行して 700 になった
 - [ ] ユーザー: `make_config.py` で config.php を作り直す（Buffer の2つを入れる。DB のパスワードを聞かれる）→ サーバーで `--channels` が通るか確認
-- [ ] ユーザー: コントロールパネルで cron を登録（「ReleaseTune X予約投稿」`0 6 * * *` `/home/users/2/mincs/releasetune/heteml/cron/buffer_schedule.php`）→ 翌朝のログ `logs/buffer_schedule-YYYY-MM.log` と Buffer の予約一覧を確認
+  - 1回目（2026-11-02）は入らなかった: 案内したコマンドが `cd /Users/MASAMI/releasetune`（main の checkout）で、main の `make_config.py` には Buffer の行がまだない。この worktree から実行し直す（worktree に `.env` → 本体の `.env` のシンボリックリンクを置いた）
+  - **本番の `revalidate_url` は空（第2段階で空にした）。`make_config.py` の既定値は Vercel の URL なので `--revalidate-url ''` を付ける**
+- [x] ユーザー: コントロールパネルで cron を登録（2026-11-02、画面で確認）（「ReleaseTune X予約投稿」`0 6 * * *` `/home/users/2/mincs/releasetune/heteml/cron/buffer_schedule.php`）→ 翌朝のログ `logs/buffer_schedule-YYYY-MM.log` と Buffer の予約一覧を確認
 
 ### あとで決める
 - ピックは日付で決まるので、同じ日は毎年ほぼ同じ8作品になる。前の年に投稿した作品を後ろに回すかは1年たつ前に決める

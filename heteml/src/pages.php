@@ -89,13 +89,15 @@ function date_card(array $u, int $i, bool $isPick = false, ?string $previewPageT
 {
     $t = $u['track'];
     $jacket = '<a href="' . h(u('/track/' . $t['id'])) . '">' . jacket($t['jacket'], $t['title'], 68) . '</a>';
+    // 一覧のカードでは、試聴ボタンはジャケットに重ねず本文に置く（68px のジャケットに文言が入らない）。再生中の印はカード全体に付く
     $preview = $previewPageType !== null ? preview_button($t, $previewPageType) : '';
-    return '<div class="dp-card" style="animation-delay:' . min($i * 70, 700) . 'ms">'
-        . ($preview !== '' ? '<div class="c-pv">' . $jacket . $preview . '</div>' : $jacket)
+    return '<div class="dp-card' . ($preview !== '' ? ' c-pv' : '') . '" style="animation-delay:' . min($i * 70, 700) . 'ms">'
+        . $jacket
         . '<div class="dp-cardBody"><a class="dp-plainLink" href="' . h(u('/track/' . $t['id'])) . '"' . view_track_ga($t) . '><div class="dp-cardTitle">' . h($t['title']) . '</div></a>'
         . '<a class="dp-cardArtist" href="' . h(artist_url($t['artist'])) . '">' . h($t['artist']) . '</a>'
         . '<div class="c-cardTags">' . ($isPick ? pick_badge($t) . '<span class="dp-cardYear">' . format_date_ja($t['release_date']) . '</span>' : '')
         . release_tags($t, count($u['versions'])) . '</div>'
+        . $preview
         . (!empty($t['note']) ? '<div class="dp-cardNote">' . h($t['note']) . '</div>' : '')
         . track_svc_links($t) . '</div></div>';
 }
@@ -170,11 +172,13 @@ function date_body(string $mmdd, array $tracks, string $today, array $debuts, st
     if ($featured) {
         $f = $featured;
         $years = years_ago($f['release_date']);
-        $html .= '<div class="dp-featured" id="pick"><div class="dp-featuredJacket c-pv"><a href="' . h(u('/track/' . $f['id'])) . '"' . view_track_ga($f) . '>'
-            . jacket($f['jacket'], $f['title'], 68, true, true) . '</a>' . preview_button($f, $pageType) . '</div><div class="dp-featuredBody">'
-            . '<div class="dp-featuredHead"><a class="dp-plainLink" href="' . h(u('/track/' . $f['id'])) . '"><h2 class="dp-featuredTitle">' . h($f['title']) . '</h2></a>'
+        // 試聴ボタンは見出しの下に置く（狭い画面ではジャケットが小さく、重ねると文言が切れる）
+        $preview = preview_button($f, $pageType);
+        $html .= '<div class="dp-featured" id="pick"><div class="dp-featuredJacket"><a href="' . h(u('/track/' . $f['id'])) . '"' . view_track_ga($f) . '>'
+            . jacket($f['jacket'], $f['title'], 68, true, true) . '</a></div><div class="dp-featuredBody">'
+            . '<div class="dp-featuredHead' . ($preview !== '' ? ' c-pv' : '') . '"><a class="dp-plainLink" href="' . h(u('/track/' . $f['id'])) . '"><h2 class="dp-featuredTitle">' . h($f['title']) . '</h2></a>'
             . '<div class="dp-featuredArtist">' . h($f['artist']) . '</div><div class="dp-featuredMeta"><span class="dp-featuredDate">' . format_date_ja($f['release_date']) . '</span>'
-            . (pick_badge($f) ?: ($years > 0 ? '<span class="dp-yearsBadge">' . $years . '年前</span>' : '')) . release_tags($f, count($view['picks'][0]['versions'])) . '</div></div>'
+            . (pick_badge($f) ?: ($years > 0 ? '<span class="dp-yearsBadge">' . $years . '年前</span>' : '')) . release_tags($f, count($view['picks'][0]['versions'])) . '</div>' . $preview . '</div>'
             . (!empty($f['note']) ? '<p class="dp-featuredNote">' . h($f['note']) . '</p>' : '')
             . svc_grid($f) . svc_pref_picker();
         if (!empty($f['youtube_id']) && !empty($f['youtube_verified'])) {

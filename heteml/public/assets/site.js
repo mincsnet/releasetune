@@ -42,13 +42,20 @@ document.addEventListener("click", function (e) {
 (function () {
   var audio = null, current = null;
 
+  // 文言は site.php の PREVIEW_LABELS（ボタンの data-label-play・data-label-stop）
+  function setLabel(btn, key) {
+    var text = btn.getAttribute("data-label-" + key);
+    btn.querySelector(".c-pvLabel").textContent = text;
+    btn.setAttribute("aria-label", text);
+  }
+
   function stop() {
     if (!current) return;
     audio.pause();
     var box = current.closest(".c-pv");
     box.classList.remove("c-pvPlaying");
     box.style.removeProperty("--pv");
-    current.setAttribute("aria-label", "試聴（30秒）");
+    setLabel(current, "play");
     current = null;
   }
 
@@ -67,7 +74,7 @@ document.addEventListener("click", function (e) {
     }
     current = btn;
     btn.closest(".c-pv").classList.add("c-pvPlaying");
-    btn.setAttribute("aria-label", "試聴を止める");
+    setLabel(btn, "stop");
     audio.src = btn.getAttribute("data-preview");
     audio.play().then(function () {
       gaEvent("preview_play", { track_id: btn.getAttribute("data-preview-id"), page_type: btn.getAttribute("data-page-type") });

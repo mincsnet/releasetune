@@ -1778,7 +1778,8 @@ button {
   font-size: 4rem;
 }
 
-/* 試聴（site.php の preview_button）。再生中は site.js が .c-pv に .c-pvPlaying を付け、--pv（0〜1）で進み具合を伝える */
+/* 試聴（site.php の preview_button）。再生中は site.js が .c-pv に .c-pvPlaying を付け、--pv（0〜1）で進み具合を伝える。
+   .c-pv は、楽曲ページではジャケット（ボタンをジャケットに重ねる）、注目曲では見出し、一覧のピックではカード全体（ボタンは本文に置く） */
 /* :where で詳細度を0にして、置き場所の指定（PC の注目曲のジャケットの position: sticky など）を上書きしない */
 :where(.c-pv) {
   position: relative;
@@ -1786,44 +1787,73 @@ button {
 .c-pv > a {
   display: block;
 }
-/* 一覧のカードでは、ジャケットの列がカードの高さまで伸びないように（ボタンがジャケットの外に出る） */
-.dp-card > .c-pv {
-  align-self: start;
+.dp-card.c-pv {
+  overflow: hidden;
+}
+.dp-featuredHead.c-pv {
+  padding-bottom: 12px;
 }
 .c-pvBtn {
-  position: absolute;
-  right: 6%;
-  bottom: 6%;
-  width: clamp(28px, 16%, 52px);
-  aspect-ratio: 1 / 1;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 12px 5px 9px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: rgba(200, 168, 75, 0.12);
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
+/* ▶（再生中は ⏸） */
 .c-pvBtn::before {
   content: "";
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 7l8 5-8 5z'/%3E%3C/svg%3E") center / 100% no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 7l8 5-8 5z'/%3E%3C/svg%3E") center / 100% no-repeat;
+  flex-shrink: 0;
+  width: 1.15em;
+  height: 1.15em;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 5l12 7-12 7z'/%3E%3C/svg%3E") center / 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 5l12 7-12 7z'/%3E%3C/svg%3E") center / 100% no-repeat;
 }
 .c-pvBtn:hover,
 .c-pvBtn:focus-visible {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(200, 168, 75, 0.24);
 }
 .c-pvPlaying .c-pvBtn {
   background: var(--gold);
+  color: #111;
 }
 .c-pvPlaying .c-pvBtn::before {
-  background: #111;
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 8h8v8H8z'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 8h8v8H8z'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 5h3.5v14H7zM13.5 5H17v14h-3.5z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 5h3.5v14H7zM13.5 5H17v14h-3.5z'/%3E%3C/svg%3E");
 }
-/* 再生中: ジャケットの下端に進み具合の線 */
+/* 楽曲ページ: ジャケットの左下に重ねる。ページの主な操作なので一段大きく */
+.td-jacket > .c-pvBtn {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  margin: 0;
+  padding: 9px 18px 9px 14px;
+  border-color: transparent;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+.td-jacket > .c-pvBtn:hover,
+.td-jacket > .c-pvBtn:focus-visible {
+  background: rgba(0, 0, 0, 0.88);
+}
+.td-jacket.c-pvPlaying > .c-pvBtn {
+  background: var(--gold);
+  color: #111;
+}
+/* 再生中: ジャケット（注目曲は見出し、一覧のピックはカード）の下端に進み具合の線 */
 .c-pvPlaying::after {
   content: "";
   position: absolute;

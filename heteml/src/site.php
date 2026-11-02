@@ -100,13 +100,18 @@ function jacket(?string $src, string $title, int $size = 68, bool $fullWidth = f
 // ジャケットの右下に重ねる試聴ボタン（30秒）。音源は押されたときに site.js が読む（一覧に <audio> を並べない）。
 // 試聴のない作品には出さない。$pageType は GA の preview_play の page_type（'top'・'date'・'track'）。
 // 置く側はジャケットとこのボタンを .c-pv で囲む（ボタンをジャケットのリンクの中に入れないため）
+// 試聴ボタンの文言（すべての試聴ボタンで共通。site.js は押したときにボタンの data-label-* から読む）
+const PREVIEW_LABELS = ['play' => '試聴する（30秒）', 'stop' => '停止する'];
+
+// アイコン（▶・⏸）は site.css が描く。aria-label は表示の文言と同じ
 function preview_button(array $t, string $pageType): string
 {
     if (empty($t['preview_url'])) {
         return '';
     }
     return '<button type="button" class="c-pvBtn" data-preview="' . h($t['preview_url']) . '" data-preview-id="' . h($t['id']) . '"'
-        . ' data-page-type="' . h($pageType) . '" aria-label="試聴（30秒）"></button>';
+        . ' data-page-type="' . h($pageType) . '" data-label-play="' . PREVIEW_LABELS['play'] . '" data-label-stop="' . PREVIEW_LABELS['stop'] . '"'
+        . ' aria-label="' . PREVIEW_LABELS['play'] . '"><span class="c-pvLabel">' . PREVIEW_LABELS['play'] . '</span></button>';
 }
 
 // クリック時に GA4 のイベントを送る属性（site.js が拾う）

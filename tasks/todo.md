@@ -33,10 +33,13 @@
 - [x] 本番反映（2026-11-02）: 本番には Phase 4（`claude/site-improvement-plan-7e574e`、main 未取り込み）が反映済みだったので、このブランチを Phase 4 の上に載せ直してから反映（rsync の中身の差はこの作業の6ファイルだけ）。載せ直した後も dry-run・JS との文面比較 11,844件一致を再確認
   - 本番の DB に `buffer_posts` を作成（0件）→ `deploy.sh` → サーバーで php8.3 の構文チェック、cron 3本とも 700、`--dry-run --date=2026-11-03` で手元と同じ8作品（嵐「A・RA・SHI」ほか）
   - 1回目の `deploy.sh` は rsync の後の chmod が SSH の不調で黙って失敗していた（cron が 755 のまま）。もう一度実行して 700 になった
-- [ ] ユーザー: `make_config.py` で config.php を作り直す（Buffer の2つを入れる。DB のパスワードを聞かれる）→ サーバーで `--channels` が通るか確認
+- [x] ユーザー: `make_config.py` で config.php を作り直す（Buffer の2つを入れる。DB のパスワードを聞かれる）→ サーバーで `--channels` が通るか確認
   - 1回目（2026-11-02）は入らなかった: 案内したコマンドが `cd /Users/MASAMI/releasetune`（main の checkout）で、main の `make_config.py` には Buffer の行がまだない。この worktree から実行し直す（worktree に `.env` → 本体の `.env` のシンボリックリンクを置いた）
   - **本番の `revalidate_url` は空（第2段階で空にした）。`make_config.py` の既定値は Vercel の URL なので `--revalidate-url ''` を付ける**
-- [x] ユーザー: コントロールパネルで cron を登録（2026-11-02、画面で確認）（「ReleaseTune X予約投稿」`0 6 * * *` `/home/users/2/mincs/releasetune/heteml/cron/buffer_schedule.php`）→ 翌朝のログ `logs/buffer_schedule-YYYY-MM.log` と Buffer の予約一覧を確認
+  - 2回目（2026-11-02 19:30）で入った: config.php は 600、`revalidate_url` は空のまま、DB 接続 OK、サーバーで `--channels` が通り、`--dry-run --date=2026-11-03` も8作品。サイト（トップ・日付・楽曲・about）200、新着 cron の `--dry-run` も正常
+  - 別件: Spotify 補完は 11/2 7:00 の本実行で 299曲目に `quota exceeded`（Retry-After 約24時間）。config の作り直しの前から起きている（1日1000曲に増やした影響の可能性。1日目のログ）
+- [x] ユーザー: コントロールパネルで cron を登録（2026-11-02、画面で確認）（「ReleaseTune X予約投稿」`0 6 * * *` `/home/users/2/mincs/releasetune/heteml/cron/buffer_schedule.php`）
+- [ ] 11/3 の初回: 6:00 のログ `logs/buffer_schedule-2026-11.log`（`scheduled` が8件）、Buffer の予約一覧、7:00 の X の投稿とカードを確認
 
 ### あとで決める
 - ピックは日付で決まるので、同じ日は毎年ほぼ同じ8作品になる。前の年に投稿した作品を後ろに回すかは1年たつ前に決める

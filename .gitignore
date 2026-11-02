@@ -18,3 +18,6 @@ heteml/config.php
 heteml/logs/
 heteml/cache/
 data/backup/
+
+# 投稿候補の精査・リリース日とデビュー日の調査の記録（スケジュール済みタスクが書く。手元だけ）
+data/audit/

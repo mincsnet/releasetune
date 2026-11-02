@@ -46,7 +46,7 @@ try {
         // 名前に「/」を含むアーティスト（site.php の artist_url）
         page_artist($_GET['name']);
     } elseif ($path === '/search') {
-        page_search(is_string($_GET['q'] ?? null) ? $_GET['q'] : '');
+        page_search(is_string($_GET['q'] ?? null) ? $_GET['q'] : '', is_string($_GET['page'] ?? null) ? (int) $_GET['page'] : 1);
     } elseif ($path === '/about') {
         page_about();
     } elseif ($path === '/terms' || $path === '/privacy') {

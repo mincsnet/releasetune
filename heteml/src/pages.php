@@ -271,7 +271,12 @@ function page_track(string $id): void
         . (is_debut_track($t) ? ' data-share-debut="1"' : '') . (release_kind($t) === 'album' ? ' data-share-album="1"' : '');
     $byArtist = tracks_by_artist($t['artist']);
     $versions = other_versions($t, $byArtist);
-    $anniversaries = other_anniversaries($t, $byArtist, new DateTimeImmutable('today'));
+    $today = new DateTimeImmutable('today');
+    $anniversaries = other_anniversaries($t, $byArtist, $today);
+    // 主名義で足りなければ参加作品から足す（主名義を先に出す）
+    if (count($anniversaries) < ANNIVERSARY_MAX) {
+        $anniversaries = array_merge($anniversaries, array_slice(other_anniversaries($t, tracks_with_participation($t['artist']), $today), 0, ANNIVERSARY_MAX - count($anniversaries)));
+    }
     $html = '<div class="td-page"><a class="td-back" href="' . h(u("/date/{$mmdd}")) . '">← ' . "{$month}月{$day}日のリリース一覧" . '</a>'
         . '<div class="td-hero"><div class="td-jacket c-pv">' . jacket($t['jacket'], $t['title'], 68, true) . preview_button($t, 'track') . '</div><div>'
         . '<div class="td-head"><h1 class="td-title">' . h($t['title']) . '</h1>'
@@ -342,6 +347,20 @@ function share_buttons(): string
 
 // ── アーティスト ─────────────────────────────────────────
 
+// アーティストページの1曲。参加作品（$showArtist）は名義も出す（共演の名義のページへのリンク）
+function artist_card(array $t, int $i, bool $showArtist): string
+{
+    [$m, $d] = parse_mmdd($t['mmdd']);
+    return '<div class="ap-card" style="animation-delay:' . min($i * 40, 600) . 'ms">'
+        . '<a href="' . h(u('/track/' . $t['id'])) . '"' . view_track_ga($t) . '>' . jacket($t['jacket'], $t['title'], 60) . '</a>'
+        . '<div class="ap-cardBody"><a class="ap-plainLink" href="' . h(u('/track/' . $t['id'])) . '"' . view_track_ga($t) . '><div class="ap-cardTitle">' . h($t['title']) . '</div></a>'
+        . ($showArtist ? '<a class="ap-plainLink" href="' . h(artist_url($t['artist'])) . '"><div class="ap-cardArtist">' . h($t['artist']) . '</div></a>' : '')
+        . '<div class="c-cardTags">' . release_tags($t) . '</div>'
+        . '<a class="ap-plainLink" href="' . h(u('/date/' . $t['mmdd'])) . '"><div class="ap-cardDate">' . format_date_ja($t['release_date'])
+        . '<span class="ap-cardDateLink">' . "{$m}月{$d}日のリリース →" . '</span></div></a>'
+        . track_svc_links($t) . '</div></div>';
+}
+
 function page_artist(string $name): void
 {
     $tracks = tracks_by_artist($name);
@@ -350,6 +369,8 @@ function page_artist(string $name): void
         return;
     }
     $count = count($tracks);
+    // 主名義（一覧・件数）とは別枠の参加作品。検索の内訳（search_artist_breakdown）と同じ数え方
+    $collabs = tracks_with_participation($name);
     $jacketSrc = '';
     foreach ($tracks as $t) {
         if (!empty($t['jacket'])) {
@@ -382,24 +403,25 @@ function page_artist(string $name): void
         $html .= '<div class="ap-debut"><span class="ap-debutLabel">デビュー</span> ' . h(str_replace('-', '.', $debut['debutDate']))
             . ($debut['debutTrack'] !== '' ? '<span class="ap-debutTrack">「' . h($debut['debutTrack']) . '」</span>' : '') . '</div>';
     }
-    $html .= '<div class="ap-count">' . $count . ' TRACKS</div></div></div>'
+    $html .= '<div class="ap-count">' . $count . ' TRACKS' . ($collabs ? '<span class="ap-countCollab">＋参加作品 ' . count($collabs) . '</span>' : '') . '</div></div></div>'
         . '<div class="td-share ap-share" data-share-artist-page="' . h($canonicalName) . '" data-share-count="' . $count . '" data-share-path="' . h(artist_path($canonicalName)) . '">' . share_buttons() . '</div>'
         . '<div class="ap-tracks"><div class="ap-tracksHeading">リリース楽曲一覧</div><div class="ap-list">';
     $prevYear = null;
     foreach ($tracks as $i => $t) {
         $year = substr($t['release_date'], 0, 4);
-        [$m, $d] = parse_mmdd($t['mmdd']);
-        $html .= '<div class="ap-listItem">' . ($year !== $prevYear ? year_header('ap', $year) : '')
-            . '<div class="ap-card" style="animation-delay:' . min($i * 40, 600) . 'ms">'
-            . '<a href="' . h(u('/track/' . $t['id'])) . '"' . view_track_ga($t) . '>' . jacket($t['jacket'], $t['title'], 60) . '</a>'
-            . '<div class="ap-cardBody"><a class="ap-plainLink" href="' . h(u('/track/' . $t['id'])) . '"' . view_track_ga($t) . '><div class="ap-cardTitle">' . h($t['title']) . '</div></a>'
-            . '<div class="c-cardTags">' . release_tags($t) . '</div>'
-            . '<a class="ap-plainLink" href="' . h(u('/date/' . $t['mmdd'])) . '"><div class="ap-cardDate">' . format_date_ja($t['release_date'])
-            . '<span class="ap-cardDateLink">' . "{$m}月{$d}日のリリース →" . '</span></div></a>'
-            . track_svc_links($t) . '</div></div></div>';
+        $html .= '<div class="ap-listItem">' . ($year !== $prevYear ? year_header('ap', $year) : '') . artist_card($t, $i, false) . '</div>';
         $prevYear = $year;
     }
-    $html .= '</div></div></div>';
+    $html .= '</div></div>';
+    if ($collabs) {
+        $html .= '<div class="ap-tracks ap-collab"><div class="ap-tracksHeading">参加作品<span class="ap-collabCount">' . count($collabs) . '件</span></div>'
+            . '<p class="ap-collabNote">共演・連名義など、ほかの名義で参加している作品です。</p><div class="ap-list">';
+        foreach ($collabs as $i => $t) {
+            $html .= '<div class="ap-listItem">' . artist_card($t, $i, true) . '</div>';
+        }
+        $html .= '</div></div>';
+    }
+    $html .= '</div>';
     $jsonld = [
         // 画像はジャケット（アーティストの写真ではない）なので付けない。一覧は大きくなりすぎないよう新しい順に100曲まで
         ['@type' => 'MusicGroup', 'name' => $canonicalName, 'url' => $url],
@@ -410,10 +432,31 @@ function page_artist(string $name): void
 
 // ── 検索 ────────────────────────────────────────────────
 
-function page_search(string $query): void
+const SEARCH_PER_PAGE = 50;
+
+// 検索結果のページ送り（?page=N。前後のページと「N / 全ページ」）
+function search_pager(string $query, int $page, int $pages): string
+{
+    if ($pages <= 1) {
+        return '';
+    }
+    $link = fn(int $p, string $label) => '<a class="sp-pagerLink" href="' . h(u('/search') . '?q=' . encode_uri_component($query) . ($p > 1 ? "&page={$p}" : '')) . '">' . $label . '</a>';
+    return '<nav class="sp-pager" aria-label="検索結果のページ">'
+        . ($page > 1 ? $link($page - 1, '← 前の' . SEARCH_PER_PAGE . '件') : '<span></span>')
+        . '<span class="sp-pagerPos">' . $page . ' / ' . $pages . ' ページ</span>'
+        . ($page < $pages ? $link($page + 1, '次の' . SEARCH_PER_PAGE . '件 →') : '<span></span>')
+        . '</nav>';
+}
+
+function page_search(string $query, int $page = 1): void
 {
     $query = trim($query);
-    $results = $query !== '' ? search_tracks($query, 50) : [];
+    $total = $query !== '' ? search_count($query) : 0;
+    $pages = max(1, (int) ceil($total / SEARCH_PER_PAGE));
+    $page = min(max(1, $page), $pages);
+    $from = ($page - 1) * SEARCH_PER_PAGE;
+    $results = $total ? search_tracks($query, SEARCH_PER_PAGE, $from) : [];
+    $breakdown = $total ? search_artist_breakdown($query) : null;
     $searchIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-mute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sp-fieldIcon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
     $html = '<div class="sp-page"><form class="sp-form" action="' . h(u('/search')) . '" method="get" data-search-form><div class="sp-field">' . $searchIcon
         . '<input type="text" name="q" value="' . h($query) . '" placeholder="楽曲タイトル・アーティスト名で検索..." autofocus class="sp-input">'
@@ -421,9 +464,16 @@ function page_search(string $query): void
         . '</div></form>';
     if ($query !== '') {
         $html .= '<div class="sp-summary">' . ($results
-            ? '「<span class="sp-queryText">' . h($query) . '</span>」の検索結果：<span class="sp-resultCount">' . count($results) . ' 件</span>'
-                . (count($results) >= 50 ? '<span class="sp-limitNote">（上位50件を表示）</span>' : '')
+            ? '「<span class="sp-queryText">' . h($query) . '</span>」の検索結果：<span class="sp-resultCount">' . $total . ' 件</span>'
+                . ($pages > 1 ? '<span class="sp-limitNote">（' . ($from + 1) . '〜' . ($from + count($results)) . '件目を表示）</span>' : '')
             : '「<span class="sp-queryText">' . h($query) . '</span>」に一致する楽曲が見つかりませんでした') . '</div>';
+        // 検索語がアーティスト名と一致するとき: 主名義＋参加作品（アーティストページと同じ数）と、それ以外の一致の内訳
+        if ($breakdown) {
+            $other = $total - $breakdown['main'] - $breakdown['participation'];
+            $html .= '<div class="sp-breakdown"><a class="sp-breakdownArtist" href="' . h(artist_url($breakdown['name'])) . '">' . h($breakdown['name']) . '</a>：'
+                . '主名義 ' . $breakdown['main'] . '件' . ($breakdown['participation'] ? '＋参加作品 ' . $breakdown['participation'] . '件' : '')
+                . ($other > 0 ? '<span class="sp-breakdownOther">ほかに曲名・別の名義での一致 ' . $other . '件</span>' : '') . '</div>';
+        }
         if ($results) {
             $html .= '<div class="sp-list">';
             foreach ($results as $i => $t) {
@@ -439,7 +489,7 @@ function page_search(string $query): void
                     . '<a class="sp-plainLink" href="' . h(u('/date/' . $t['mmdd'])) . '"><span class="sp-cardDateLink">' . "{$m}月{$d}日のリリース →" . '</span></a></div>'
                     . track_svc_links($t) . '</div></div>';
             }
-            $html .= '</div>';
+            $html .= '</div>' . search_pager($query, $page, $pages);
         } else {
             $html .= '<div class="sp-placeholder"><div class="sp-noneIcon">♪</div><div class="sp-noneTitle">別のキーワードで試してみてください</div>'
                 . '<div class="sp-placeholderHint">例：アーティスト名、楽曲タイトルの一部</div></div>';

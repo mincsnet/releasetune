@@ -2033,3 +2033,80 @@ html[data-svc="youtube"] .c-svcRow > .c-svcSearch:has(.c-svcIcon-youtube)::after
     padding: 20px 48px 0;
   }
 }
+
+/* ── アーティストページの参加作品 ─────────────────────────── */
+
+.ap-countCollab {
+  margin-left: 10px;
+  color: var(--gold);
+}
+
+.ap-collab {
+  margin-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.ap-collabCount {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--text-mute);
+}
+
+.ap-collabNote {
+  font-size: 0.76rem;
+  color: var(--text-mute);
+  margin: -4px 0 14px;
+}
+
+.ap-cardArtist {
+  font-size: 0.76rem;
+  color: var(--text-sec);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 検索: アーティスト名の内訳・ページ送り ───────────────────── */
+
+.sp-breakdown {
+  font-size: 0.78rem;
+  color: var(--text-sec);
+  margin: -8px 0 16px;
+  line-height: 1.8;
+}
+
+.sp-breakdownArtist {
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.sp-breakdownOther {
+  display: block;
+  color: var(--text-mute);
+}
+
+.sp-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 24px 0 8px;
+  font-size: 0.82rem;
+}
+
+.sp-pagerLink {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-sec);
+  text-decoration: none;
+}
+
+.sp-pagerLink:hover {
+  background: var(--surface2);
+}
+
+.sp-pagerPos {
+  color: var(--text-mute);
+}

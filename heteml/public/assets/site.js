@@ -198,7 +198,9 @@ var SHARE_TEMPLATES = {
   anniversary: "{years}年前の今日 {date} は、{work}のリリース日🎂 {years}周年です。当時、どこで誰と聴いていましたか？",
   today: "今日 {date} は {work}のリリース日。{year}年から{years}年。久しぶりに聴き直しませんか？",
   other: "{fullDate}リリースの {work}。あれから{years}年、久しぶりに聴き直しませんか？",
-  thisYear: "{fullDate}リリースの {work}。"
+  thisYear: "{fullDate}リリースの {work}。",
+  // アーティストページ
+  artist: "{artist} のリリース作品{count}作品を、年ごとにまとめました。"
 };
 // キリのいい周年（anniversary を使う年数）
 var SHARE_ANNIVERSARIES = [5, 10, 15, 20, 25, 30, 40, 50];
@@ -234,6 +236,31 @@ function buildShareText(t, now, tags) {
     if (xLength(text) + 23 <= 280 || len <= 1) return text + url;
   }
 }
+
+// アーティストページのシェア文。曲を縮める必要はない（アーティスト名だけで上限を超えることはない）
+function buildArtistShareText(a, tags) {
+  var body = SHARE_TEMPLATES.artist.replace(/\{(\w+)\}/g, function (_, k) { return a[k]; });
+  var tagLine = tags.map(function (tag) { return "#" + tag; }).join(" ");
+  return body + "\n\n" + tagLine + "\n" + "https://releasetune.com" + a.path;
+}
+
+(function () {
+  var box = document.querySelector("[data-share-artist-page]");
+  if (!box) return;
+  var a = { artist: box.getAttribute("data-share-artist-page"), count: box.getAttribute("data-share-count"), path: box.getAttribute("data-share-path") };
+  var tag = artistHashtag(a.artist);
+  box.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-share]");
+    if (!btn) return;
+    if (btn.getAttribute("data-share") === "x") {
+      gaEvent("share", { method: "X", artist: a.artist, page_type: "artist" });
+      window.open("https://x.com/intent/tweet?text=" + encodeURIComponent(buildArtistShareText(a, tag ? [tag, "ReleaseTune"] : ["ReleaseTune"])), "_blank");
+    } else {
+      gaEvent("share", { method: "Threads", artist: a.artist, page_type: "artist" });
+      window.open("https://www.threads.net/intent/post?text=" + encodeURIComponent(buildArtistShareText(a, [tag || "ReleaseTune"])), "_blank");
+    }
+  });
+})();
 
 (function () {
   var box = document.querySelector("[data-share-id]");

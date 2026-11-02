@@ -2010,3 +2010,26 @@ html[data-svc="youtube"] .c-svcRow > .c-svcSearch:has(.c-svcIcon-youtube)::after
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
 }
+
+/* ── 楽曲ページ: 同じアーティストの他のリリース記念日 ──────────────── */
+
+.td-anniv {
+  margin-bottom: 40px;
+}
+
+.td-annivYear {
+  color: var(--text-mute);
+}
+
+/* ── アーティストページのシェア ─────────────────────────── */
+
+.ap-share {
+  margin: 0 20px 28px;
+}
+
+@media (min-width: 960px) {
+  .ap-share {
+    margin: 0 0 32px;
+    padding: 20px 48px 0;
+  }
+}

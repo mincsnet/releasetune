@@ -269,7 +269,9 @@ function page_track(string $id): void
     // シェア文は押した時点の日付で site.js が作る（SHARE_TEMPLATES。リリース日の当日はデビュー・キリ周年・通常で出し分け）
     $share = ' data-share-id="' . h($t['id']) . '" data-share-title="' . h($t['title']) . '" data-share-artist="' . h($t['artist']) . '" data-share-date="' . h($t['release_date']) . '"'
         . (is_debut_track($t) ? ' data-share-debut="1"' : '') . (release_kind($t) === 'album' ? ' data-share-album="1"' : '');
-    $versions = other_versions($t);
+    $byArtist = tracks_by_artist($t['artist']);
+    $versions = other_versions($t, $byArtist);
+    $anniversaries = other_anniversaries($t, $byArtist, new DateTimeImmutable('today'));
     $html = '<div class="td-page"><a class="td-back" href="' . h(u("/date/{$mmdd}")) . '">← ' . "{$month}月{$day}日のリリース一覧" . '</a>'
         . '<div class="td-hero"><div class="td-jacket c-pv">' . jacket($t['jacket'], $t['title'], 68, true) . preview_button($t, 'track') . '</div><div>'
         . '<div class="td-head"><h1 class="td-title">' . h($t['title']) . '</h1>'
@@ -288,10 +290,7 @@ function page_track(string $id): void
             . '<iframe src="https://www.youtube.com/embed/' . h($t['youtube_id']) . '?rel=0" title="' . h($t['title'] . ' - ' . $t['artist']) . '"'
             . ' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="td-mvIframe"></iframe></div></div>';
     }
-    $html .= '<div class="td-share"' . $share . '><div class="td-sectionLabel">シェア</div><div class="td-shareBtns">'
-        . '<button class="td-shareBtn" data-share="x"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="' . X_ICON_PATH . '"></path></svg>X でシェア</button>'
-        . '<button class="td-shareBtn" data-share="threads"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.505-1.808-1.343-3.233-2.487-4.234-1.19-1.036-2.868-1.587-4.9-1.6-2.832.019-4.952.965-6.475 2.898-1.426 1.806-2.168 4.298-2.196 7.405.028 3.11.77 5.6 2.196 7.405 1.522 1.93 3.64 2.876 6.467 2.895 2.256-.028 3.9-.605 5.072-1.744 1.346-1.31 1.895-3.256 1.895-5.457 0-.144-.005-.287-.016-.43h-7.019v-2.016h9.115c.028.29.044.585.044.883 0 2.9-.74 5.406-2.41 7.03C17.42 23.278 15.127 24 12.186 24z"></path></svg>Threads でシェア</button>'
-        . '</div></div>';
+    $html .= '<div class="td-share"' . $share . '>' . share_buttons() . '</div>';
     // 同じ曲の別盤（feat. 違い・リミックス・Type 違い・リマスターなど。日付が違うものも含む）
     if ($versions) {
         $html .= '<div class="td-section td-versions"><div class="td-sectionLabel">ほかのバージョン</div><ul class="c-versionList">';
@@ -303,6 +302,18 @@ function page_track(string $id): void
     }
     $html .= '</div></div>';
 
+    if ($anniversaries) {
+        $html .= '<div class="td-siblings td-anniv"><div class="td-siblingsHeading">' . h($t['artist']) . 'の他のリリース記念日</div><div class="td-siblingsList">';
+        foreach ($anniversaries as $i => $a) {
+            $o = $a['track'];
+            $html .= '<div class="td-siblingsItem"><a class="td-sibLink" href="' . h(u('/track/' . $o['id'])) . '"' . view_track_ga($o) . '>'
+                . '<div class="td-sib" style="animation-delay:' . ($i * 60) . 'ms">' . jacket($o['jacket'], $o['title'], 48)
+                . '<div class="td-sibBody"><div class="td-sibTitle">' . h($o['title']) . '</div>'
+                . '<div class="td-sibArtist">' . $a['date']->format('n月j日') . 'に' . $a['years'] . '周年<span class="td-annivYear">（' . substr($o['release_date'], 0, 4) . '年）</span></div></div>'
+                . '<span class="td-sibChevron">›</span></div></a></div>';
+        }
+        $html .= '</div></div>';
+    }
     if ($siblings) {
         $html .= '<div class="td-siblings"><div class="td-siblingsHeading">' . "{$month}月{$day}日にリリースされた他の楽曲" . '</div><div class="td-siblingsList">';
         $prevYear = null;
@@ -318,6 +329,15 @@ function page_track(string $id): void
     }
     $html .= '</div>';
     render_page($meta, page_wrap($html));
+}
+
+// シェアボタン（X・Threads）。押したときの文面は site.js が囲む枠の data-share-* から作る（楽曲ページとアーティストページ）
+function share_buttons(): string
+{
+    return '<div class="td-sectionLabel">シェア</div><div class="td-shareBtns">'
+        . '<button class="td-shareBtn" data-share="x"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="' . X_ICON_PATH . '"></path></svg>X でシェア</button>'
+        . '<button class="td-shareBtn" data-share="threads"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.505-1.808-1.343-3.233-2.487-4.234-1.19-1.036-2.868-1.587-4.9-1.6-2.832.019-4.952.965-6.475 2.898-1.426 1.806-2.168 4.298-2.196 7.405.028 3.11.77 5.6 2.196 7.405 1.522 1.93 3.64 2.876 6.467 2.895 2.256-.028 3.9-.605 5.072-1.744 1.346-1.31 1.895-3.256 1.895-5.457 0-.144-.005-.287-.016-.43h-7.019v-2.016h9.115c.028.29.044.585.044.883 0 2.9-.74 5.406-2.41 7.03C17.42 23.278 15.127 24 12.186 24z"></path></svg>Threads でシェア</button>'
+        . '</div>';
 }
 
 // ── アーティスト ─────────────────────────────────────────
@@ -363,6 +383,7 @@ function page_artist(string $name): void
             . ($debut['debutTrack'] !== '' ? '<span class="ap-debutTrack">「' . h($debut['debutTrack']) . '」</span>' : '') . '</div>';
     }
     $html .= '<div class="ap-count">' . $count . ' TRACKS</div></div></div>'
+        . '<div class="td-share ap-share" data-share-artist-page="' . h($canonicalName) . '" data-share-count="' . $count . '" data-share-path="' . h(artist_path($canonicalName)) . '">' . share_buttons() . '</div>'
         . '<div class="ap-tracks"><div class="ap-tracksHeading">リリース楽曲一覧</div><div class="ap-list">';
     $prevYear = null;
     foreach ($tracks as $i => $t) {

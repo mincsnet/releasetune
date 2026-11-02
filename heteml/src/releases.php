@@ -124,11 +124,63 @@ function group_versions(array $tracks): array
     return array_values($units);
 }
 
-// 楽曲ページの「ほかのバージョン」（同じアーティストの作品から、同じ曲の別盤を発売日の新しい順に）
-function other_versions(array $t): array
+// 楽曲ページの「ほかのバージョン」（同じアーティストの作品 $byArtist から、同じ曲の別盤を発売日の新しい順に）
+function other_versions(array $t, array $byArtist): array
 {
     $key = version_key($t);
-    return array_values(array_filter(tracks_by_artist($t['artist']), fn($o) => $o['id'] !== $t['id'] && version_key($o) === $key));
+    return array_values(array_filter($byArtist, fn($o) => $o['id'] !== $t['id'] && version_key($o) === $key));
+}
+
+// ── 同じアーティストの他のリリース記念日 ─────────────────────
+
+const ANNIVERSARY_MAX = 5;
+
+// 次にリリース記念日が来る日（今日を含む）と、その日で何周年か。2月29日はうるう年にだけ来る
+function next_anniversary(string $releaseDate, DateTimeImmutable $today): array
+{
+    [$y, $m, $d] = array_map('intval', explode('-', $releaseDate));
+    for ($year = (int) $today->format('Y'); ; $year++) {
+        if (checkdate($m, $d, $year) && sprintf('%04d-%02d-%02d', $year, $m, $d) >= $today->format('Y-m-d')) {
+            return ['date' => new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $m, $d)), 'years' => $year - $y];
+        }
+    }
+}
+
+// 楽曲ページの「{アーティスト}の他のリリース記念日」。次に記念日が来る順に最大 ANNIVERSARY_MAX 件。
+// 同じ曲の別盤は1件にまとめ、この曲の別盤（「ほかのバージョン」に出るもの）は除く。日付はなるべくばらけるよう、
+// まず日付ごとに1件ずつ選んでから残りで埋める。周年が1年未満（今年のリリースで記念日がまだ来ていない）のものは出さない。
+// 戻り値: [['track' => ..., 'date' => 次の記念日, 'years' => 周年], ...]
+function other_anniversaries(array $t, array $candidates, DateTimeImmutable $today): array
+{
+    $key = version_key($t);
+    $items = [];
+    foreach (group_versions($candidates) as $unit) {
+        $o = $unit['track'];
+        if ($o['id'] === $t['id'] || version_key($o) === $key) {
+            continue;
+        }
+        $next = next_anniversary($o['release_date'], $today);
+        if ($next['years'] >= 1) {
+            $items[] = ['track' => $o] + $next;
+        }
+    }
+    // 近い順。同じ日なら周年の大きい（古い）ものから
+    usort($items, fn($a, $b) => [$a['date'], $a['track']['release_date']] <=> [$b['date'], $b['track']['release_date']]);
+    $picked = $rest = [];
+    foreach ($items as $item) {
+        $day = $item['date']->format('Y-m-d');
+        if (!isset($picked[$day])) {
+            $picked[$day] = $item;
+        } else {
+            $rest[] = $item;
+        }
+    }
+    $result = array_slice(array_values($picked), 0, ANNIVERSARY_MAX);
+    if (count($result) < ANNIVERSARY_MAX) {
+        $result = array_merge($result, array_slice($rest, 0, ANNIVERSARY_MAX - count($result)));
+        usort($result, fn($a, $b) => [$a['date'], $a['track']['release_date']] <=> [$b['date'], $b['track']['release_date']]);
+    }
+    return $result;
 }
 
 // ── 一括配信 ────────────────────────────────────────────

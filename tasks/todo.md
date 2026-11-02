@@ -267,7 +267,7 @@
 - [x] Step 1 差分の棚卸し: 本番 35ファイル・ブランチ 32ファイル、一致 29。違いは buffer_schedule.php・buffer.php・share.php（本番だけ）、config.sample.php・site.js・schema.sql（両方にあって中身が違う）。Buffer のブランチ `claude/buffer-scheduled-posts-f0604e`（`15e9911`、未コミットなし）の6ファイルは本番と同じハッシュ
 - [x] Step 2 取り込み: Buffer のブランチをマージ（`17fdfa8`、衝突なし）。site.js は試聴ボタンの変更と Buffer のコメント行の両方が入った
 - [x] Step 3 diff-zero: マージ後の違いは schema.sql だけ（ブランチの方が新しい: Buffer の表＋今日の spotify_search_stage 列の説明。実行時には読まれず、手で使う bin/import_snapshot.php だけが読む）。本番の版がマージ元と同じことを確かめて送り、**35ファイルすべてハッシュ一致・差分ゼロ**。対象外: config.php・logs/・cache/（サーバーだけにある）、tasks/ などの記録（heteml/ の外）
-- [ ] Step 4 main へのマージと push（運営者の最終確認待ち）
+- [x] Step 4 main へのマージと push（2026-11-03、ユーザー指示「マージして push」。早送りで取り込み）。以後は main から分岐し、本番反映はマージ済みの状態から行う（Step 5）
 - 暫定ルール: deploy.sh での全体送信は禁止、部分反映の前に本番の版と比べる（tasks/lessons.md）
 
 **試聴ボタンの文言**（2026-11-03、`~/Downloads/releasetune-preview-button-label.md`）— コミット `0060b1d`。**本番反映 2026-11-03 01:21 JST**（preview_play の変更前後はこの時刻で分ける）

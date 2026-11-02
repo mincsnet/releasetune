@@ -30,7 +30,11 @@
 - [x] 試しに1件だけ予約（2026-11-02、`buffer_posts` には書かずに `buffer_schedule_post` を直接呼んだ）: 11/9 7:00 に中村雅俊「WITHOUT YOU」（30周年）。API で読み直すと `status: scheduled`・`dueAt: 2026-11-08T22:00:00.000Z`（＝JST 11/9 7:00）、絵文字・改行・タグ・URL もそのまま。投稿 ID `6ae85271dd7a4869734cc8f4`
   - **この予約は本番の cron と枠が重なる（11/9 7:00 に同じ作品）ので、Buffer の画面で確認したら消す**
 - [ ] ユーザー: Buffer の予約一覧で上の1件の見え方（リンクカード）を確認し、消す
-- [ ] 本番: `buffer_posts` を作る → `deploy.sh` → ユーザーがコントロールパネルで cron を登録（`0 6 * * *`）
+- [x] 本番反映（2026-11-02）: 本番には Phase 4（`claude/site-improvement-plan-7e574e`、main 未取り込み）が反映済みだったので、このブランチを Phase 4 の上に載せ直してから反映（rsync の中身の差はこの作業の6ファイルだけ）。載せ直した後も dry-run・JS との文面比較 11,844件一致を再確認
+  - 本番の DB に `buffer_posts` を作成（0件）→ `deploy.sh` → サーバーで php8.3 の構文チェック、cron 3本とも 700、`--dry-run --date=2026-11-03` で手元と同じ8作品（嵐「A・RA・SHI」ほか）
+  - 1回目の `deploy.sh` は rsync の後の chmod が SSH の不調で黙って失敗していた（cron が 755 のまま）。もう一度実行して 700 になった
+- [ ] ユーザー: `make_config.py` で config.php を作り直す（Buffer の2つを入れる。DB のパスワードを聞かれる）→ サーバーで `--channels` が通るか確認
+- [ ] ユーザー: コントロールパネルで cron を登録（「ReleaseTune X予約投稿」`0 6 * * *` `/home/users/2/mincs/releasetune/heteml/cron/buffer_schedule.php`）→ 翌朝のログ `logs/buffer_schedule-YYYY-MM.log` と Buffer の予約一覧を確認
 
 ### あとで決める
 - ピックは日付で決まるので、同じ日は毎年ほぼ同じ8作品になる。前の年に投稿した作品を後ろに回すかは1年たつ前に決める

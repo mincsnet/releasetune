@@ -21,8 +21,8 @@
   - 例: `Mr.Children「旅立ちの唄」のリリース日・配信リンク`（` - Single` は消える。` - EP` は `social_title` の対象外なので残る）/ `10月31日に発売・リリースされた曲一覧` / `Mr.Childrenのリリース曲一覧・発売日`
   - JSON-LD はすべて JSON として読める（トップ: WebSite・Organization・ItemList）。PHP の警告・サーバーのエラーなし。スマホ幅でフッターは折り返して横スクロールなし
   - 手元の確認用に `heteml/config.php` を `site-improvement-plan-7e574e` の worktree のものへのシンボリックリンクにした（git 管理外）
-- [x] コミット（2026-11-06、ブランチ `claude/releasetune-seo-d946ed`。main には未マージ）
-- [x] 本番反映（2026-11-06 11:21 JST、ユーザー指示「本番に反映」。main には未マージ）
+- [x] コミット（2026-11-06、ブランチ `claude/releasetune-seo-d946ed`）→ main に早送りで取り込んで push（2026-11-06、ユーザー指示「マージして push」）。本番の heteml/ と main は再び同じ
+- [x] 本番反映（2026-11-06 11:21 JST、ユーザー指示「本番に反映」）
   - 送る前に本番の35ファイルとブランチの土台 `7342d22` をハッシュで比べ、差分ゼロ（ほかのセッションの変更なし）。`deploy.sh --dry-run` で中身が変わるのは pages.php・site.php だけ（ほかは更新時刻だけ）だったので、site.css・site.js の `?v=` を変えないよう2ファイルだけを rsync で送った。サーバーで php8.3 の構文チェック OK、ハッシュが手元と一致
   - 本番で確認: トップ・日付・楽曲・アーティスト・about・検索が 200、404 は 404、sitemap・robots・カード画像 200。title は手元と同じ。JSON-LD はすべて JSON として読める（トップ: WebSite・Organization・ItemList）。PHP の警告なし、`X-Robots-Tag` なし
 - [ ] 反映後: Search Console の「URL 検査」でトップの再登録をリクエスト、リッチリザルトテストで WebSite・Organization を確認

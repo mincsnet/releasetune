@@ -4,6 +4,24 @@
 
 このファイルはプロジェクトの開発状況・残タスクの正本です。新しいチャットセッションでもこのファイルを読めば経緯と優先順位が分かるようにしています。作業を進めたら随時更新してください。
 
+## 進行中: Muse によるリリース日・デビュー日の確認（2026-11-06〜）
+
+外部の確認担当（Muse）に、作品のリリース日とデビュー日・デビュー作を確かめてもらう（2026-11-06 ユーザー指示）。下の「Buffer」の節の毎日の精査（`releasetune-date-audit`、1日 作品40・15組まで）では全体に届かないため。結果は同じ `data/audit/` に入れる
+
+- [x] 作業指示書 `scripts/audit/MUSE_GUIDE.md`（書き出すと `00_作業指示書.md` として一緒に渡る）
+  - 作品: 載せるべき日付の決まり（`release_type`: original / reissue＝同じ録音は元の作品の日付 / rerecording・compilation・live＝その盤の日付）、先行配信日は `prerelease_date`（DB がそれと同じなら ok）、配信サービスの表示日付は根拠にしない、迷ったら unknown
+  - デビュー: 公式・Wikipedia の「デビュー」、メジャーとインディーズの両方があればメジャー、プレデビュー曲・再録はデビュー作にしない、音楽作品のリリースの日
+  - 記入例は架空の作品（実在の作品の日付を例にすると、Muse が事実として使うおそれがある）
+- [x] `scripts/audit/muse.py`
+  - `export [--releases 5] [--debuts 0]`: DB（API 経由）と `debut_artists.csv` から確認シートを本体の `data/audit/muse/outbox/` に書き出す（1シート100行、BOM 付き UTF-8）。作品の順は デビュー作扱い（`debut_work`）→ 一括配信（`batch`、同じアーティスト・同じ日に5作品以上）・再発らしい作品名（`reissue_title`）→ その他（`upcoming`）、同じ順位の中は明日から記念日が近い順。デビューは記念日が近い順。スケジュール済みタスクが ok・wrong にしたもの、Muse が一度確かめたもの（unknown を含む）、outbox で返事待ちのものは入れない
+  - `import [--dry-run] [CSV…]`: `inbox/` の CSV を渡したシートと突き合わせ（列名・行数・渡す値の列が変わっていないか）、値を検証（status・日付の形・ok/wrong の根拠 URL と確信度・ok なのに日付が違う・wrong なのに同じ など）。誤りが1つでもあるファイルは何も書かない。通ったら `results_releases.csv`・`results_debuts.csv`（全部の列）と `data/audit/release_dates.csv`・`debuts.csv`（`checked_by=muse`）に書き、シートを `done/` へ。これまでの ok・wrong と食い違うときは上書きせず表示。Muse の unknown でこれまでの記録は消さない
+  - DB と `debut_artists.csv` は変更しない
+- [x] 初回の書き出し（2026-11-06）: DB 33,600作品・一覧718組 → 作品 `releases_001〜005`（500件: debut_work 230・batch 151・reissue_title 119。未確認は全体で33,432件）、デビュー `debuts_001〜007`（残り全部の662組）
+- [x] 確認（作業用フォルダに記録をコピーして）: 正常な返却の取り込み（全角の日付・大文字の status・カンマ入りのメモ）、誤り7種類でファイルごと取り込まない、既存の記録（post-task の BE:FIRST）との食い違いの表示、取り込み後の再書き出しから除外されること
+- [ ] ユーザー: `outbox/` の指示書とシートを Muse に渡す → 返ってきた CSV を `inbox/` に置く
+- [ ] 取り込み → wrong と食い違いの一覧を見て、DB のリリース日・`debut_artists.csv` を直す（直し方はその時に決める。確信度 low は直さない、など）。続きのシートは `export` で
+- 気づいたこと（未対応）: サイトの `debut_db()`（`heteml/src/releases.php`）は CSV を単純にカンマで区切るので、作品名にカンマがある4組（Chroma-kei「Each Day, Everyday」・前田 亘輝・矢沢永吉・サディスティック・ミカ・バンド）はデビュー作の名前が途中で切れ、`"` も残る。デビュー日が年月だけの10組（たま `1989-05` など）はデビュー記念日に出ない。`debut_artists.csv` を直すときに一緒に直す
+
 ## 進行中: SEO（2026-11-06〜）
 
 検索エンジンでヒットさせたい（ユーザー）。sitemap・robots・canonical・JSON-LD・OGP 画像は Phase 1 で対応済み、Search Console へは 11/1 に sitemap 送信済み。11/6 時点で Web 検索には出ていない（送信から5日）

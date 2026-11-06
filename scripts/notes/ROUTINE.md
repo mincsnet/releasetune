@@ -45,6 +45,24 @@
 
 DBの曲名を直した後（`scripts/titles/fix_ja_titles.py` など）は、`python3 scripts/notes/collect.py --rematch` で「記事なし」と記録した曲のうち曲名が変わったものだけを照合し直せる。
 
+## Muse に執筆を頼むとき
+
+執筆（手順4）を Muse に任せる場合の手順。Muse への指示は `scripts/notes/MUSE.md`。
+
+1. **作業ファイルを作る**: 必要なら収集（手順2）のあと、
+   `python3 scripts/notes/export_pending.py --limit 20 --blank --out data/notes/muse/muse-YYYY-MM-DD.json`
+   - 記事ごとに空の回答欄（`note_short`・`note_long`・`facts`・`skip`・`skip_reason`）が付く
+2. **渡す**: ユーザーが Muse に `MUSE.md`・`STYLE.md`・作業ファイルの3つを渡す
+   - Muse に渡している間は、同じ記事を定期実行で書かない（記事は `sourced` のままなので、先に取り込んだ方だけが保存され、後の方は「執筆待ちにありません」で弾かれる）
+3. **受け取る**: ユーザーが Muse から返ってきた `muse-YYYY-MM-DD.done.json` を `data/notes/muse/` に置き、「Muse の分を反映して」と依頼する。Muse の申し送り（メッセージ）もあれば一緒に受け取る
+4. **チェック**: `python3 scripts/notes/import_drafts.py data/notes/muse/muse-YYYY-MM-DD.done.json --batch muse-YYYY-MM-DD --dry-run`
+   - JSON が壊れていたら（Muse の書き損じ）、文面は変えずに構文だけ直す
+   - `wiki_title` が変わっていて取り込めない記事は、元の作業ファイルと照らして直す
+   - チェックの指摘は直さずにそのまま保存してよい（Muse の文面を Claude が書き換えない。レビューで人が判断する）。ただし文末の「。」抜けのような明らかな形式の誤りは直してよく、直したら報告する
+5. **保存**: 同じコマンドを `--dry-run` なしで実行する。バッチ ID を `muse-` で始めると、レビューページで Claude の下書きと区別できる
+6. **ページへ**: 「同期の手順」の手順2を `python3 scripts/notes/sync_review.py --upload-only` にして行う（Muse の分を載せるだけで、ページ上の判断は反映しない）
+7. **報告**: 取り込んだ記事数・要確認の数・見送り（理由）・チェックの指摘の傾向・直した形式の誤り・Muse の申し送り。指摘の傾向から `MUSE.md` に足すべき注意があれば提案する
+
 ## 守ること
 
 - `tracks` テーブルは直接書き換えない（公開はレビューでの承認だけ）

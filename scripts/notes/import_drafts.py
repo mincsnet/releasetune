@@ -7,18 +7,21 @@ data/notes/drafts.json（Claude が STYLE.md に従って書いたもの）を�
 drafts.json の形式:
     [
       {"wiki_title": "少女A", "note_short": "…", "note_long": "…",
-       "facts": [{"claim": "オリコン週間最高5位", "source": "（出典テキストの該当箇所）"}]},
+       "facts": [{"claim": "オリコン週間最高5位", "source": "（出典テキストの該当箇所）"}],
+       "review_note": "（任意）書き手がレビューで見てほしい点"},
       {"wiki_title": "…", "skip": true, "skip_reason": "出典に発売日以外の情報がない"}
     ]
 
 抜き取り（review_required=true）:
-    - 機械チェックに引っかかったもの、書き直し依頼への再提出 → 全件
-    - 人がレビューを終えた記事が PILOT_ARTICLES 件になるまで（試作期間） → 全件
+    - 機械チェックに引っかかったもの、書き手の申し送り（review_note）があるもの、書き直し依頼への再提出 → 全件
     - それ以外 → 1割（最低3件）を無作為に
+    （2026-11-06 まで「人がレビューを終えた記事が50件になるまで全件」の試作期間があった。終了）
+要確認でない記事は、事実の照合を経て auto_publish.py が公開する（ROUTINE.md）
 
 使い方:
     python3 scripts/notes/import_drafts.py --dry-run   # チェックだけ（保存しない）
     python3 scripts/notes/import_drafts.py             # data/notes/drafts.json を保存
+    python3 scripts/notes/import_drafts.py restyle.json --redraft --batch 2026-09-28   # 確認待ちの下書きを差し替える
 """
 
 import json, math, random, re, sys, unicodedata
@@ -30,7 +33,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import (DATA_DIR, key, now_iso, sb_in, sb_select, sb_select_in, sb_update, today_jst)
 
-PILOT_ARTICLES = 50
 SAMPLE_RATE    = 0.1
 SAMPLE_MIN     = 3
 SHORT_MAX      = 60
@@ -126,6 +128,8 @@ def main():
     ap.add_argument("--batch", default=today_jst(), help="バッチID（デフォルト: 今日の日付）")
     ap.add_argument("--dry-run", action="store_true", help="チェック結果を表示するだけで保存しない")
     ap.add_argument("--seed", type=int, help="抜き取りの乱数シード（テスト用）")
+    ap.add_argument("--redraft", action="store_true",
+                    help="確認待ち（drafted）でバッチが --batch の下書きも差し替えの対象にする（文体の直しなど）")
     args = ap.parse_args()
 
     drafts = json.loads(Path(args.path).read_text(encoding="utf-8"))
@@ -134,18 +138,14 @@ def main():
 
     titles = [d.get("wiki_title", "") for d in drafts]
     rows = [r for r in sb_select_in("track_note_drafts", "wiki_title", titles,
-                                    "track_id,status,wiki_title,source_text", chunk=30)
-            if r["status"] in ("sourced", "rewrite")]
+                                    "track_id,status,batch_id,wiki_title,source_text", chunk=30)
+            if r["status"] in ("sourced", "rewrite")
+            or (args.redraft and r["status"] == "drafted" and r["batch_id"] == args.batch)]
     groups: dict[str, list[dict]] = defaultdict(list)
     for r in rows:
         groups[r["wiki_title"]].append(r)
     tracks = {t["id"]: t for t in sb_select_in("tracks", "id", [r["track_id"] for r in rows],
                                                "id,title,artist,release_date")}
-
-    # 試作期間は「人がレビューを終えた記事」が PILOT_ARTICLES 件になるまで（書いただけの記事は数えない）
-    reviewed = {r["wiki_title"] for r in sb_select("track_note_drafts", {
-        "select": "wiki_title", "status": "in.(published,rewrite,rejected)"})}
-    pilot = len(reviewed) < PILOT_ARTICLES
 
     results = []   # (title, ids, patch)
     errors = []
@@ -153,7 +153,8 @@ def main():
         title = d.get("wiki_title", "")
         g = groups.get(title)
         if not g:
-            errors.append(f"「{title}」は執筆待ち（sourced / rewrite）にありません")
+            errors.append(f"「{title}」は執筆待ち（sourced / rewrite）にありません"
+                          + ("（--redraft なら、バッチ {args.batch} の確認待ち）" if args.redraft else ""))
             continue
         ids = [r["track_id"] for r in g]
         if d.get("skip"):
@@ -165,9 +166,11 @@ def main():
         long_ = (d.get("note_long") or "").strip()
         facts = d.get("facts") or []
         issues = check(short, long_, facts, g[0]["source_text"] or "", [tracks[i] for i in ids if i in tracks])
+        if (note := (d.get("review_note") or "").strip()):
+            issues.append({"type": "writer_flag", "detail": f"書き手の申し送り: {note}"})
         results.append((title, ids, {"status": "drafted", "note_short": short, "note_long": long_ or None,
                                      "facts": facts, "issues": issues,
-                                     "review_required": bool(issues) or pilot or g[0]["status"] == "rewrite"}))
+                                     "review_required": bool(issues) or g[0]["status"] == "rewrite"}))
 
     # 抜き取り: まだ要確認になっていない記事から1割（最低3件）
     rest = [r for r in results if r[2]["status"] == "drafted" and not r[2]["review_required"]]
@@ -191,8 +194,7 @@ def main():
     n_draft = sum(r[2]["status"] == "drafted" for r in results)
     n_review = sum(r[2]["review_required"] for r in results)
     n_issue = sum(bool(r[2].get("issues")) and r[2]["status"] == "drafted" for r in results)
-    print(f"\n下書き {n_draft}記事（うち要確認 {n_review}、チェック指摘あり {n_issue}）/ 見送り {len(results) - n_draft} / エラー {len(errors)}"
-          + ("（試作期間: 全件確認）" if pilot else ""))
+    print(f"\n下書き {n_draft}記事（うち要確認 {n_review}、チェック指摘あり {n_issue}）/ 見送り {len(results) - n_draft} / エラー {len(errors)}")
 
     if args.dry_run:
         print("（ドライラン: 保存していません）")

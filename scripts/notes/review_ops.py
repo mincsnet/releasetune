@@ -72,7 +72,8 @@ def article_rows(batch_id: str, wiki_title: str, status: str = "drafted") -> lis
     })
 
 
-def publish(rows: list[dict], note_short: str, note_long: str, comment: str) -> int:
+def publish(rows: list[dict], note_short: str, note_long: str, comment: str, extra_issues: list[dict] = ()) -> int:
+    """extra_issues: 公開の経緯として track_note_drafts.issues に足す記録（自動公開の印など）"""
     ids = [r["track_id"] for r in rows]
     head = rows[0]
     sb_update("tracks", {"id": sb_in(ids)}, {
@@ -82,7 +83,7 @@ def publish(rows: list[dict], note_short: str, note_long: str, comment: str) -> 
         "note_source_url": head["wiki_url"],
         "note_verified": True,
     })
-    issues = head["issues"] or []
+    issues = (head["issues"] or []) + list(extra_issues)
     if note_short != (head["note_short"] or "") or (note_long or None) != head["note_long"]:
         # レビューで直した内容は執筆ルールの改善に使うので、元の下書きを残しておく
         issues = issues + [{"type": "edited_by_reviewer", "detail": "レビューで修正",
@@ -134,3 +135,24 @@ def approve_rest(batch_id: str) -> dict:
         groups[r["wiki_title"]].append(r)
     n = sum(publish(g, g[0]["note_short"], g[0]["note_long"] or "", "") for g in groups.values())
     return {"articles": len(groups), "tracks": n}
+
+
+def unpublish(wiki_title: str, comment: str, rewrite: bool) -> int:
+    """公開済みの紹介文をサイトから外す。rewrite=True なら書き直し依頼（次の執筆に回る）、False なら掲載しない"""
+    rows = sb_select("track_note_drafts", {
+        "select": "track_id,issues", "wiki_title": f"eq.{wiki_title}", "status": "eq.published",
+    })
+    if not rows:
+        raise ValueError(f"「{wiki_title}」は公開済み（published）ではありません")
+    if not comment:
+        raise ValueError("取り消しの理由（comment）が必要です")
+    ids = [r["track_id"] for r in rows]
+    sb_update("tracks", {"id": sb_in(ids)}, {
+        "note": None, "note_long": None, "note_source_title": None, "note_source_url": None, "note_verified": False,
+    })
+    sb_update("track_note_drafts", {"track_id": sb_in(ids)}, {
+        "status": "rewrite" if rewrite else "rejected", "reviewer_comment": comment,
+        "issues": (rows[0]["issues"] or []) + [{"type": "unpublished", "detail": f"公開を取り消し: {comment}"}],
+        "updated_at": now_iso(),
+    })
+    return len(ids)

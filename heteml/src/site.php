@@ -231,7 +231,7 @@ function site_footer(): string
 {
     $a = 'font-size:0.72rem;color:#555;text-decoration:none';
     return '<footer style="border-top:1px solid #2a2a2a;padding:20px;text-align:center;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap">'
-        . '<span style="font-size:0.72rem;color:#444">© 2026 Release Tune</span>'
+        . '<span style="font-size:0.72rem;color:#444">© 2026 Release Tune（リリースチューン）</span>'
         . '<a href="' . h(u('/about')) . '" style="' . $a . '">このサイトについて</a>'
         . '<a href="' . h(u('/terms')) . '" style="' . $a . '">利用規約</a>'
         . '<a href="' . h(u('/privacy')) . '" style="' . $a . '">プライバシーポリシー</a>'
@@ -292,8 +292,10 @@ function basic_meta(string $title, string $description, ?string $robots = null):
     return ['title' => $title, 'tags' => $tags];
 }
 
-const SITE_TITLE = 'Release Tune — 今日はあの曲のリリース日';
-const SITE_DESCRIPTION = '今日この日にリリースされた楽曲を、年代を超えてご紹介します。';
+const SITE_TITLE = 'Release Tune（リリースチューン） — 今日はあの曲のリリース日';
+const SITE_DESCRIPTION = 'Release Tune（リリースチューン）は、今日この日にリリースされた楽曲を、年代を超えてご紹介する音楽リリースカレンダーです。';
+// 検索で使われる別の表記（カタカナ・スペースなし）。構造化データの alternateName に出す
+const SITE_ALTERNATE_NAMES = ['リリースチューン', 'ReleaseTune'];
 const X_URL = 'https://x.com/releasetune';
 const X_ICON_PATH = 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.261 5.636 5.903-5.636zm-1.161 17.52h1.833L7.084 4.126H5.117z';
 
@@ -371,6 +373,17 @@ function ld_item_list(string $name, array $tracks): array
             'name' => $t['artist'] . '「' . social_title($t['title']) . '」',
         ], $tracks, array_keys($tracks)),
     ];
+}
+
+// トップだけに出すサイトと運営の情報（Google が検索結果のサイト名を決めるのに使う）
+function ld_website(): array
+{
+    return ['@type' => 'WebSite', 'name' => 'Release Tune', 'alternateName' => SITE_ALTERNATE_NAMES, 'url' => SITE_ORIGIN . '/', 'inLanguage' => 'ja'];
+}
+
+function ld_organization(): array
+{
+    return ['@type' => 'Organization', 'name' => 'Release Tune', 'alternateName' => SITE_ALTERNATE_NAMES, 'url' => SITE_ORIGIN . '/', 'sameAs' => [X_URL]];
 }
 
 // [[名前, URL], ...] の順にたどるパンくず

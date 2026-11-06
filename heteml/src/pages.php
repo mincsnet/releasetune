@@ -25,7 +25,7 @@ function page_home(): void
     $meta = basic_meta(SITE_TITLE, SITE_DESCRIPTION);
     array_push($meta['tags'], ['link', 'canonical', SITE_ORIGIN . '/'], ['property', 'og:url', SITE_ORIGIN . '/'],
         ...($tracks ? card_image_tags(SITE_ORIGIN . "/date/{$mmdd}/opengraph-image", '今日リリースされた楽曲') : []));
-    $meta['jsonld'] = date_jsonld($mmdd, $tracks);
+    $meta['jsonld'] = [ld_website(), ld_organization(), ...date_jsonld($mmdd, $tracks)];
     // トップはデビュー記念日を出さない（Next.js 版と同じ）
     render_page($meta, page_wrap(date_body($mmdd, $tracks, $mmdd, [], 'top')));
 }
@@ -38,7 +38,7 @@ function page_date(string $mmdd): void
     }
     [$month, $day] = parse_mmdd($mmdd);
     $tracks = tracks_by_mmdd($mmdd);
-    $title = "{$month}月{$day}日のリリース楽曲";
+    $title = "{$month}月{$day}日に発売・リリースされた曲一覧";
     $description = $tracks
         ? "{$month}月{$day}日にリリースされた" . count($tracks) . '曲をご紹介。'
             . implode('、', array_map(fn($t) => "{$t['artist']}「{$t['title']}」", array_slice($tracks, 0, 3))) . 'など。'
@@ -253,7 +253,7 @@ function page_track(string $id): void
     $socialTitle = social_title($t['title']) . ' — ' . $t['artist'];
     $url = SITE_ORIGIN . "/track/{$id}";
     $image = SITE_ORIGIN . "/track/{$id}/opengraph-image";
-    $meta = ['title' => page_title($t['title'] . ' — ' . $t['artist']), 'tags' => [
+    $meta = ['title' => page_title($t['artist'] . '「' . social_title($t['title']) . '」のリリース日・配信リンク'), 'tags' => [
         ['name', 'description', $description],
         ['link', 'canonical', $url],
         ['property', 'og:title', $socialTitle],
@@ -382,7 +382,7 @@ function page_artist(string $name): void
             break;
         }
     }
-    $title = page_title($name);
+    $title = page_title("{$name}のリリース曲一覧・発売日");
     $description = "{$name}のリリース楽曲一覧。{$count}曲を収録。";
     // 表記違い（大文字小文字）で同じページが複数の URL にならないよう、いちばん多い表記を正の URL にする（sitemap と同じ）
     $spellings = array_count_values(array_column($tracks, 'artist'));
@@ -560,7 +560,7 @@ function page_about(): void
 {
     $x = '<a href="' . X_URL . '" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">@releasetune</a>';
     $sections = [
-        ['Release Tune とは', '<p>「今日はあの曲のリリース日」をテーマに、同じ日付にリリースされた曲を、年代を超えて集めたサイトです。日付・曲・アーティストごとにリリースの情報をまとめ、気になる1曲は配信サービスへのリンクからそのまま聴きに行けます。</p>'
+        ['Release Tune とは', '<p>Release Tune（リリースチューン）は、「今日はあの曲のリリース日」をテーマに、同じ日付にリリースされた曲を、年代を超えて集めたサイトです。日付・曲・アーティストごとにリリースの情報をまとめ、気になる1曲は配信サービスへのリンクからそのまま聴きに行けます。</p>'
             . '<p>日付ページでは、その日の注目曲とピックを紹介しています。曲のページからは、同じアーティストのほかのリリース記念日もたどれます。</p>'],
         ['データの出典', '<ul style="padding-left:1.2em">'
             . '<li>曲名・アーティスト名・リリース日・ジャケット画像・30秒の試聴: Apple の iTunes Search API</li>'

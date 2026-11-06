@@ -1,8 +1,35 @@
 # ReleaseTune 開発タスク
 
-最終更新: 2026-11-02
+最終更新: 2026-11-06
 
 このファイルはプロジェクトの開発状況・残タスクの正本です。新しいチャットセッションでもこのファイルを読めば経緯と優先順位が分かるようにしています。作業を進めたら随時更新してください。
+
+## 進行中: SEO（2026-11-06〜）
+
+検索エンジンでヒットさせたい（ユーザー）。sitemap・robots・canonical・JSON-LD・OGP 画像は Phase 1 で対応済み、Search Console へは 11/1 に sitemap 送信済み。11/6 時点で Web 検索には出ていない（送信から5日）
+
+### ステップ1: ブランド名とタイトル（2026-11-06 ユーザー指示「ステップ1を実装」）
+- [x] トップのタイトル・説明に「リリースチューン」を併記（`SITE_TITLE`・`SITE_DESCRIPTION`）。ほかのページの末尾は「— Release Tune」のまま（長いと検索結果で切れる）
+- [x] タイトルに検索される言葉を入れる
+  - 楽曲: `朝顔 — Mr.Children` → `Mr.Children「朝顔」のリリース日・配信リンク`（曲名は ` - Single` を除いた `social_title`。og:title はそのまま）
+  - 日付: `11月6日のリリース楽曲` → `11月6日に発売・リリースされた曲一覧`（og:title も）
+  - アーティスト: `米津玄師` → `米津玄師のリリース曲一覧・発売日`（og:title も）
+- [x] トップに JSON-LD `WebSite`（`alternateName`: リリースチューン・ReleaseTune）と `Organization`（`sameAs`: X）
+- [x] 本文にも併記: about の導入文とフッターの「© 2026 Release Tune（リリースチューン）」
+- [x] 手元の `heteml-php` で確認（2026-11-06）
+  - 変更前後の HTML の差分（トップ・日付 10/31・楽曲2件・アーティスト・about・検索・404）は狙った箇所だけ: title・og/twitter の title、トップと 404 の description、トップの JSON-LD 2件、about の導入文、フッター
+  - 例: `Mr.Children「旅立ちの唄」のリリース日・配信リンク`（` - Single` は消える。` - EP` は `social_title` の対象外なので残る）/ `10月31日に発売・リリースされた曲一覧` / `Mr.Childrenのリリース曲一覧・発売日`
+  - JSON-LD はすべて JSON として読める（トップ: WebSite・Organization・ItemList）。PHP の警告・サーバーのエラーなし。スマホ幅でフッターは折り返して横スクロールなし
+  - 手元の確認用に `heteml/config.php` を `site-improvement-plan-7e574e` の worktree のものへのシンボリックリンクにした（git 管理外）
+- [x] コミット（2026-11-06、ブランチ `claude/releasetune-seo-d946ed`。main には未マージ）
+- [ ] 本番反映（`deploy.sh`）→ 本番で title・JSON-LD を確認（ユーザーの指示を待つ）
+- [ ] 反映後: Search Console の「URL 検査」でトップの再登録をリクエスト、リッチリザルトテストで WebSite・Organization を確認
+
+### あとで（ステップ2以降の候補）
+- ユーザー: Bing Webmaster Tools に登録（Search Console から読み込み）、Search Console の「URL 検査」でトップ・about などの登録をリクエスト
+- IndexNow（新着 cron から新しい URL を送る）
+- favicon がない（`/favicon.ico` 404）。検索結果のサイト名の横に出るので用意したい
+- 中身の薄い楽曲ページの扱い、sitemap の並び（紹介文のあるページを先に）、`<lastmod>`
 
 ## 進行中: Buffer で X に毎日の予約投稿（2026-11-02〜）
 

@@ -6,6 +6,7 @@ track_note_drafts の sourced（未執筆）と rewrite（書き直し依頼）�
 
 使い方:
     python3 scripts/notes/export_pending.py --limit 20
+    python3 scripts/notes/export_pending.py --blank --out data/notes/muse/muse-2026-11-06.json   # Muse に渡す作業ファイル
 """
 
 import json, sys
@@ -21,6 +22,8 @@ def main():
     ap = ArgumentParser(description="執筆待ちの記事を書き出す")
     ap.add_argument("--limit", type=int, default=20, help="書き出す記事数（デフォルト: 20）")
     ap.add_argument("--out", default=str(DATA_DIR / "pending.json"))
+    ap.add_argument("--blank", action="store_true",
+                    help="記事ごとに空の回答欄を付ける（外部の執筆者が埋めて返す作業ファイル用。MUSE.md 参照）")
     args = ap.parse_args()
 
     rows = sb_select("track_note_drafts", {
@@ -50,6 +53,8 @@ def main():
         if head["status"] == "rewrite":
             a["reviewer_comment"] = head["reviewer_comment"]
             a["previous"] = {"note_short": head["note_short"], "note_long": head["note_long"]}
+        if args.blank:
+            a.update({"note_short": "", "note_long": "", "facts": [], "skip": False, "skip_reason": ""})
         articles.append(a)
 
     out = Path(args.out)

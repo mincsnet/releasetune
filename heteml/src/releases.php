@@ -227,7 +227,7 @@ function batch_kind_summary(array $batch): string
     return implode('・', array_map(fn($k, $n) => "{$k}{$n}", array_keys($counts), $counts));
 }
 
-// ── デビュー記念日（debut_artists.csv。Next.js 版と同じく単純にカンマで区切る） ──
+// ── デビュー記念日（debut_artists.csv） ──
 
 function debut_db(): array
 {
@@ -236,10 +236,13 @@ function debut_db(): array
         return $db;
     }
     $db = [];
-    $lines = @file(__DIR__ . '/../data/debut_artists.csv', FILE_IGNORE_NEW_LINES) ?: [];
-    $header = array_map('trim', explode(',', array_shift($lines) ?? ''));
-    foreach ($lines as $line) {
-        $cols = explode(',', $line);
+    // 「"」で囲んだ値（「Love, Day After Tomorrow」のようにカンマを含む作品名など）を読めるよう、CSV として読む
+    $fh = @fopen(__DIR__ . '/../data/debut_artists.csv', 'r');
+    if (!$fh) {
+        return $db;
+    }
+    $header = array_map('trim', fgetcsv($fh, null, ',', '"', '') ?: []);
+    while (($cols = fgetcsv($fh, null, ',', '"', '')) !== false) {
         $row = [];
         foreach ($header as $i => $name) {
             $row[$name] = trim($cols[$i] ?? '');
@@ -248,6 +251,7 @@ function debut_db(): array
             $db[$row['artist']] = ['artist' => $row['artist'], 'debutDate' => $row['debut_date'], 'debutTrack' => $row['debut_track'] ?? ''];
         }
     }
+    fclose($fh);
     return $db;
 }
 

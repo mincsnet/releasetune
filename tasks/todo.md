@@ -112,7 +112,7 @@ Phase 0（調査・報告のみ）→ 承認 → Phase 1〜5 を1 Phase 1 PR で
 - 反映範囲（Muse の推奨。ユーザーがそのまま渡した＝承認とみなす。確認は下の計画の承認で）: 判断3 =LOVE のライブ盤6件は外す（ライブ音源は音源としての初出日を採る方針）／判断4 debuts_004 は high だけ反映し、medium は Muse が本文で再確認して返す
 - 判断2（確認済みだけを表示する切り替え）は別に決める。今回は値の差し替えと verified 付けまで
 
-### T1-1 照合結果の反映（計画。承認待ち）
+### T1-1 照合結果の反映（2026-11-07 ユーザー指示「この計画で始める」→「本番で実行してよい」。**本番反映済み**）
 
 **事前確認②の結果（2026-11-07、コードを読んで確認）**
 - 本番の DB に書く経路は3つ: 新着 cron（`heteml/cron/new_releases.php`、既存の行は `ON DUPLICATE KEY UPDATE id = id` で変えない）、手元のスクリプト用 API `heteml/public/api/db.php`（使っているのは `backfill_spotify.py` の spotify 列、`scripts/notes/` の紹介文の列と下書き表、`scripts/titles/fix_ja_titles.py` の題名だけ。release_date を書くものはない）、`heteml/bin/import_snapshot.php`（表を空にして入れ直す。移行用で手動のみ）
@@ -137,6 +137,19 @@ Phase 0（調査・報告のみ）→ 承認 → Phase 1〜5 を1 Phase 1 PR で
 7. 報告（指示書の報告フォーマット）。その後クロール指示書の Phase 0 に進む
 
 **お願いすること**: 本番 DB の読み取り（手順6の dry-run）と書き込み（本反映）は、自動の権限判定で止められる操作。実行の前に、その都度許可をもらう
+
+**結果**（ブランチ `claude/seo-t1-1-date-corrections`、最新の main `6a23cf6` から分岐。コミット `c39efb0`）
+- 作ったもの: `heteml/bin/apply_date_corrections.php`（`--dry-run`・`--revert`）、`heteml/data/date_corrections.csv`（82件）、`schema.sql` に `track_date_corrections`、`scripts/audit/build_corrections.py`（照合シート → 2つの CSV。Muse が medium 13組を返したら実行し直す）、`debut_db()` を `fgetcsv` に、`import_snapshot.php`・`fetch_debuts.py` に注意書き
+- デビュー CSV: 366組の値を直した（Muse 327・運営側 39）。verified 582 / 718（元は3）。列 `source_url`・`checked_by` を追加。値を変えなかったのは Muse の unknown 93・年だけ 24、保留 13、運営側 6
+- 手元（11/2 のコピー）: 82件反映・81件が日付ページを移動（荻野目洋子は /date/12-11 の19件 → 0件、「恋してカリビアン」は /date/05-21 へ）。再実行は全件「直し済み」で0件、`--revert` で全件戻り、再反映できた。照合後に値が変わった作品は反映でも戻しでも飛ばして一覧に出ることを確認。回帰確認の URL セットはすべて想定どおり（`/track/6828291702` は手元のコピーにないので 404）、PHP の警告なし
+- releases_002 の wrong 1件（小柳ゆき「FREEDOM」、出典の一部を復元したと Muse の留保）は Wikipedia を開いて 1999-11-25 発売を確認
+- 本番（送る前に本番の35ファイルと main がハッシュで差分ゼロを確認）
+  - 15:19 頃 反映スクリプト・反映用 CSV・schema.sql・import_snapshot.php を送り、`track_date_corrections` を作成（0件）
+  - 15:20:12 `--dry-run` で再突合: 82件とも照合時の値のまま（照合後に変わった作品 0・DB にない作品 0）
+  - **15:20:30 JST** `releases.php` → `debut_artists.csv` の順に送った（デビュー表示が変わった時刻）。ハッシュは手元と一致、php8.3 の構文チェック OK
+  - **15:20:39 JST** リリース日を反映（82件・81件が日付ページを移動）。`track_date_corrections` 82件（applied_at 06:20:39 UTC）
+  - 本番で確認: /date/12-11 の荻野目洋子 19 → 0、/track/763205756 は 1985年5月21日、小柳ゆき「FREEDOM」1999年11月25日、TRF「masquerade / Winter Grooves」1995年2月1日。デビュー: 浜崎あゆみ 1998.04.08「poker face」・宇多田ヒカル 1998.12.09「Automatic / time will tell」・NiziU 2020.12.02「Step and a step」・矢沢永吉「アイ・ラヴ・ユー,OK」（崩れが直った）・BE:FIRST「Gifted.」・flumpool 2008.10.01「花になれ」、/date/04-08 に浜崎あゆみの記念日。回帰確認の URL セットはすべて 200／404 が想定どおり、PHP の警告なし、検索は noindex, follow のまま
+- 残り: main へのマージ（本番が main より先に進んでいる）、Muse への報告、Muse が medium 13組を返したら build → 送る。判断2（確認済みだけを表示する）は別に決める。運営側の精査のリリース日 wrong 21件（`data/audit/release_dates.csv`）は今回の範囲外
 
 ### あとで（ステップ2以降の候補）
 - ユーザー: Bing Webmaster Tools に登録（Search Console から読み込み）、Search Console の「URL 検査」でトップ・about などの登録をリクエスト

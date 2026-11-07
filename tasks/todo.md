@@ -106,6 +106,38 @@ Phase 0（調査・報告のみ）→ 承認 → Phase 1〜5 を1 Phase 1 PR で
   4. debuts_004（抜粋での照合）の wrong 50組をそのまま反映するか、confidence high の34組だけにするか
   5. 1月1日の約2,200件（年しか分からない作品）の扱い。Phase 1 の範囲に入れるか
 
+**Muse の回答（2026-11-07 受領）**
+- クロール指示書 `~/Desktop/releasetune-seo-crawl-instructions.md` を受領（Phase 0 調査で停止 → Phase 1 サイトマップ選別 → Phase 2 www の棚卸し → Phase 3 計測設計）。Claude Code 側は未着手。Muse の意見では、クロール側 Phase 0 の到達数などは T1-1 の反映後に測るほうが正確
+- **T1-1 は先行してよい**。条件: ①本番 DB での再突合 ②取り込み系のスクリプトが release_date を書き戻さないことの確認 ③元に戻せる形（照合の記録を別表に残す）④反映日時を分単位で記録
+- 反映範囲（Muse の推奨。ユーザーがそのまま渡した＝承認とみなす。確認は下の計画の承認で）: 判断3 =LOVE のライブ盤6件は外す（ライブ音源は音源としての初出日を採る方針）／判断4 debuts_004 は high だけ反映し、medium は Muse が本文で再確認して返す
+- 判断2（確認済みだけを表示する切り替え）は別に決める。今回は値の差し替えと verified 付けまで
+
+### T1-1 照合結果の反映（計画。承認待ち）
+
+**事前確認②の結果（2026-11-07、コードを読んで確認）**
+- 本番の DB に書く経路は3つ: 新着 cron（`heteml/cron/new_releases.php`、既存の行は `ON DUPLICATE KEY UPDATE id = id` で変えない）、手元のスクリプト用 API `heteml/public/api/db.php`（使っているのは `backfill_spotify.py` の spotify 列、`scripts/notes/` の紹介文の列と下書き表、`scripts/titles/fix_ja_titles.py` の題名だけ。release_date を書くものはない）、`heteml/bin/import_snapshot.php`（表を空にして入れ直す。移行用で手動のみ）
+- ルートの `collect*.py`・`clean_duplicates.py` など旧スクリプトは `data/tracks.json` に書くだけ。`migrate_to_supabase.py`（main の checkout に未追跡で残っている）は旧 Supabase 向けで、今の DB には書かない
+- → **release_date を書き戻す自動の経路はない**。注意が要るのは手動の2つ: `import_snapshot.php`（古いスナップショットを入れ直すと戻る）、`fetch_debuts.py`（ルートの `debut_artists.csv` を MusicBrainz から作り直す。サイトが読むのは `heteml/data/debut_artists.csv` だが、コピーすると戻る）。両方の先頭に注意書きを足す
+
+**見つかった不具合（反映の前に直す必要がある）**
+- `debut_db()`（`heteml/src/releases.php`）が CSV を `explode(',')` で読んでいて、`"` で囲んだ値を壊す。今の本番でも7組が壊れて表示されている（例: 矢沢永吉のデビュー作が「"アイ・ラヴ・ユー」、Chroma-kei が「"Each Day」。名前に `"` を含む SOIL&"PIMP"SESSIONS の2組は引けない）。訂正後のデビュー作にも `,` を含むものが3つある（「Love, Day After Tomorrow」など）→ `str_getcsv` で読むように直す
+
+**反映する件数**
+- リリース日: 82件（wrong 88 − =LOVE のライブ盤6）。年月日まで分かり、confidence は high か medium
+- デビュー: Muse の wrong のうち年月日まで分かる340組 − debuts_004 の medium 13組（保留）＝ **327組** ＋ 運営側の精査（`data/audit/debuts.csv`、Muse のシートにない組）の wrong のうち年月日まで分かるもの（約40組。反映時に数え直す）。年・年月だけの wrong 24組と unknown は値を変えない
+- verified を付ける: Muse の ok 205組＋運営側の ok＋差し替えた組
+
+**手順**（1つの PR。main から分岐）
+1. `debut_db()` を `str_getcsv` に（手元で7組の表示が直ることを確認）
+2. 照合の記録の表 `track_date_corrections`（track_id・元の日付・新しい日付・release_type・根拠 URL・confidence・照合者・反映日時）を `schema.sql` に追加
+3. 反映スクリプト `heteml/bin/apply_date_corrections.php`: 反映する行の CSV（`heteml/data/date_corrections.csv`、git 管理）を読み、**DB の値が照合時の値（db_date）と同じ行だけ**を1つのトランザクションで更新（release_date と mmdd）、元の値を記録の表へ。`--dry-run`（件数と変わる日付ページを出すだけ）と `--revert`（記録の表から元に戻す）
+4. `heteml/data/debut_artists.csv` を更新: 差し替え・verified・`source_url` と `checked_by` の列を追加（読み込みは列名で引くので、列が増えても今の表示は変わらない）。元に戻すのは git で
+5. 手元の DB で dry-run → 本反映 → 確認（荻野目洋子の旧シングルが 1984〜89年の日付ページへ、浜崎あゆみのデビューが 1998-04-08「poker face」、矢沢永吉の表示が直る、回帰確認の URL セット）→ `--revert` で元に戻ることも確認
+6. 本番: 表を作る → `--dry-run`（**本番 DB での再突合**: 照合時と値が違う行は飛ばして一覧に出す）→ コードと CSV を部分反映 → 本反映 → 反映日時を分単位で記録 → 本番で確認
+7. 報告（指示書の報告フォーマット）。その後クロール指示書の Phase 0 に進む
+
+**お願いすること**: 本番 DB の読み取り（手順6の dry-run）と書き込み（本反映）は、自動の権限判定で止められる操作。実行の前に、その都度許可をもらう
+
 ### あとで（ステップ2以降の候補）
 - ユーザー: Bing Webmaster Tools に登録（Search Console から読み込み）、Search Console の「URL 検査」でトップ・about などの登録をリクエスト
 - IndexNow（新着 cron から新しい URL を送る）

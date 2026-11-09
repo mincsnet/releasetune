@@ -247,7 +247,9 @@ function debut_db(): array
         foreach ($header as $i => $name) {
             $row[$name] = trim($cols[$i] ?? '');
         }
-        if (($row['artist'] ?? '') !== '' && ($row['debut_date'] ?? '') !== '') {
+        // 照合で確かめた組（verified）だけを使う（2026-11-09 Muse の判断2）。未確認の組はサイトのどこにも出さない
+        // （アーティストページ・日付ページの記念日・楽曲ページの印・シェア文・X の予約投稿・ピックの点数）
+        if (($row['artist'] ?? '') !== '' && ($row['debut_date'] ?? '') !== '' && ($row['verified'] ?? '') === 'true') {
             $db[$row['artist']] = ['artist' => $row['artist'], 'debutDate' => $row['debut_date'], 'debutTrack' => $row['debut_track'] ?? ''];
         }
     }

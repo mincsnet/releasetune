@@ -100,20 +100,13 @@ function search_artist_breakdown(string $query): ?array
     return ['name' => $rows[0]['artist'], 'main' => array_sum(array_column($rows, 'c')), 'participation' => count(tracks_with_participation(trim($query)))];
 }
 
-// sitemap の楽曲ファイル（sitemap-tracks-N.xml）に載せる楽曲。紹介文のある楽曲は sitemap-notes.xml に載せるので除く（同じ URL を二重に載せない）
-const SITEMAP_TRACKS_WHERE = "(note IS NULL OR note = '')";
-
-// sitemap 用。楽曲 ID を一覧と同じ並び（新しい順）で $offset 件目から $limit 件
-function track_ids(int $offset, int $limit): array
+// sitemap 用。リリース日が今日（JST）を含めて $days 日以内の楽曲の id（新しい順）
+function recent_track_ids(int $days): array
 {
-    $stmt = db()->prepare('SELECT id FROM tracks WHERE ' . SITEMAP_TRACKS_WHERE . ' ORDER BY ' . LIST_ORDER . ' LIMIT ? OFFSET ?');
-    $stmt->execute([$limit, $offset]);
+    $today = new DateTimeImmutable('today');
+    $stmt = db()->prepare('SELECT id FROM tracks WHERE release_date > ? AND release_date <= ? ORDER BY ' . LIST_ORDER);
+    $stmt->execute([$today->modify("-{$days} days")->format('Y-m-d'), $today->format('Y-m-d')]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
-}
-
-function track_count(): int
-{
-    return (int) db()->query('SELECT COUNT(*) FROM tracks WHERE ' . SITEMAP_TRACKS_WHERE)->fetchColumn();
 }
 
 // sitemap 用。紹介文のある楽曲の id => ページの内容が最後に変わった日時（UTC の 'Y-m-d H:i:s'。分からなければ null）。公開の新しい順。
@@ -136,15 +129,31 @@ function note_track_lastmods(): array
     return $out;
 }
 
-// sitemap 用。アーティストページは大文字小文字を区別しないので、表記違いは1つにまとめ、いちばん多い表記を返す
-function artist_names(): array
+// sitemap 用。アーティスト（キーは小文字の名前。アーティストページは大文字小文字を区別しない）=> ['name' => いちばん多い表記, 'count' => 作品数]。作品数の多い順
+function artist_name_counts(): array
 {
-    $rows = db()->query('SELECT artist FROM tracks GROUP BY artist ORDER BY COUNT(*) DESC, artist')->fetchAll(PDO::FETCH_COLUMN);
-    $names = [];
-    foreach ($rows as $name) {
-        $names[mb_strtolower($name)] ??= $name;
+    // まとめるキーはページと同じ artist_lc（MySQL の LOWER）
+    $rows = db()->query('SELECT artist, artist_lc, COUNT(*) AS n FROM tracks GROUP BY artist, artist_lc ORDER BY n DESC, artist')->fetchAll();
+    $out = [];
+    foreach ($rows as $r) {
+        $lc = $r['artist_lc'];
+        $out[$lc] ??= ['name' => $r['artist'], 'count' => 0];
+        $out[$lc]['count'] += (int) $r['n'];
     }
-    return array_values($names);
+    uasort($out, fn($x, $y) => $y['count'] <=> $x['count']);
+    return $out;
+}
+
+// sitemap 用。楽曲 id の一覧から、そのアーティスト（小文字の名前）の一覧
+function track_artists_lc(array $ids): array
+{
+    $out = [];
+    foreach (array_chunk($ids, 1000) as $chunk) {
+        $stmt = db()->prepare('SELECT DISTINCT artist_lc FROM tracks WHERE id IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')');
+        $stmt->execute($chunk);
+        array_push($out, ...$stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+    return array_values(array_unique($out));
 }
 
 // 日付ページのピック用。Wikipedia に作品の記事が見つかっている（紹介文の下調べで記事名が分かった）作品の id

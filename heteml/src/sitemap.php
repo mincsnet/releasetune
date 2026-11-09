@@ -1,6 +1,6 @@
 <?php
-// robots.txt と sitemap（索引 ＋ 日付・アーティスト・楽曲の子 sitemap）。
-// URL は常に本番（SITE_ORIGIN）。tracks に更新日時の列がないので <lastmod> は出さない（推測の日付を書かない）
+// robots.txt と sitemap（索引 ＋ 日付・アーティスト・紹介文のある楽曲・楽曲の子 sitemap）。
+// URL は常に本番（SITE_ORIGIN）。<lastmod> は実際に内容が変わった日時が分かるもの（紹介文のある楽曲）にだけ付ける（推測の日付を書かない）
 
 require_once __DIR__ . '/site.php';
 require_once __DIR__ . '/tracks.php';
@@ -19,6 +19,8 @@ function sitemap_route(string $path): void
         sitemap_dates();
     } elseif ($path === '/sitemap-artists.xml') {
         sitemap_artists();
+    } elseif ($path === '/sitemap-notes.xml') {
+        sitemap_notes();
     } elseif (!preg_match('#^/sitemap-tracks-(\d+)\.xml$#', $path, $m) || !sitemap_tracks((int) $m[1])) {
         page_not_found();
     }
@@ -32,7 +34,7 @@ function robots_txt(): void
 
 function sitemap_index(): void
 {
-    $files = ['sitemap-dates.xml', 'sitemap-artists.xml'];
+    $files = ['sitemap-dates.xml', 'sitemap-artists.xml', 'sitemap-notes.xml'];
     for ($i = 1, $n = (int) ceil(track_count() / SITEMAP_TRACKS_PER_FILE); $i <= $n; $i++) {
         $files[] = "sitemap-tracks-{$i}.xml";
     }
@@ -54,7 +56,17 @@ function sitemap_artists(): void
     sitemap_output('urlset', 'url', array_map(fn($name) => SITE_ORIGIN . artist_path($name), artist_names()));
 }
 
-// 1 から数える。範囲外は 404
+// 紹介文のある楽曲（公開の新しい順）。<lastmod> は紹介文の公開・リリース日の修正の新しいほう（note_track_lastmods）
+function sitemap_notes(): void
+{
+    $urls = [];
+    foreach (note_track_lastmods() as $id => $lastmod) {
+        $urls[] = ['loc' => SITE_ORIGIN . '/track/' . encode_uri_component((string) $id), 'lastmod' => $lastmod];
+    }
+    sitemap_output('urlset', 'url', $urls);
+}
+
+// 紹介文のない楽曲。1 から数える。範囲外は 404
 function sitemap_tracks(int $page): bool
 {
     $ids = $page >= 1 ? track_ids(($page - 1) * SITEMAP_TRACKS_PER_FILE, SITEMAP_TRACKS_PER_FILE) : [];
@@ -65,12 +77,16 @@ function sitemap_tracks(int $page): bool
     return true;
 }
 
+// $urls の要素は URL の文字列か ['loc' => URL, 'lastmod' => UTC の 'Y-m-d H:i:s' か null]
 function sitemap_output(string $root, string $item, array $urls): void
 {
     header('Content-Type: application/xml; charset=utf-8');
     echo '<?xml version="1.0" encoding="UTF-8"?>', "\n", '<', $root, ' xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', "\n";
     foreach ($urls as $url) {
-        echo '<', $item, '><loc>', htmlspecialchars($url, ENT_XML1 | ENT_QUOTES, 'UTF-8'), '</loc></', $item, ">\n";
+        $loc = is_array($url) ? $url['loc'] : $url;
+        $lastmod = is_array($url) && $url['lastmod'] !== null
+            ? '<lastmod>' . (new DateTimeImmutable($url['lastmod'], new DateTimeZone('UTC')))->format('c') . '</lastmod>' : '';
+        echo '<', $item, '><loc>', htmlspecialchars($loc, ENT_XML1 | ENT_QUOTES, 'UTF-8'), '</loc>', $lastmod, '</', $item, ">\n";
     }
     echo '</', $root, ">\n";
 }

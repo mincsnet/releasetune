@@ -100,17 +100,40 @@ function search_artist_breakdown(string $query): ?array
     return ['name' => $rows[0]['artist'], 'main' => array_sum(array_column($rows, 'c')), 'participation' => count(tracks_with_participation(trim($query)))];
 }
 
+// sitemap の楽曲ファイル（sitemap-tracks-N.xml）に載せる楽曲。紹介文のある楽曲は sitemap-notes.xml に載せるので除く（同じ URL を二重に載せない）
+const SITEMAP_TRACKS_WHERE = "(note IS NULL OR note = '')";
+
 // sitemap 用。楽曲 ID を一覧と同じ並び（新しい順）で $offset 件目から $limit 件
 function track_ids(int $offset, int $limit): array
 {
-    $stmt = db()->prepare('SELECT id FROM tracks ORDER BY ' . LIST_ORDER . ' LIMIT ? OFFSET ?');
+    $stmt = db()->prepare('SELECT id FROM tracks WHERE ' . SITEMAP_TRACKS_WHERE . ' ORDER BY ' . LIST_ORDER . ' LIMIT ? OFFSET ?');
     $stmt->execute([$limit, $offset]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
 function track_count(): int
 {
-    return (int) db()->query('SELECT COUNT(*) FROM tracks')->fetchColumn();
+    return (int) db()->query('SELECT COUNT(*) FROM tracks WHERE ' . SITEMAP_TRACKS_WHERE)->fetchColumn();
+}
+
+// sitemap 用。紹介文のある楽曲の id => ページの内容が最後に変わった日時（UTC の 'Y-m-d H:i:s'。分からなければ null）。公開の新しい順。
+// 日時は、紹介文を公開した日時（track_note_drafts.updated_at。scripts/notes/review_ops.py の publish が公開と同時に書く）と、
+// 照合でリリース日を直した日時（track_date_corrections.applied_at）の新しいほう。
+// 下書きが公開済み（published）でない楽曲（同じ記事が別のバッチで書き直し中など）は、紹介文がいつ変わったか分からないので null
+function note_track_lastmods(): array
+{
+    $rows = db()->query("SELECT t.id, IF(d.status = 'published', d.updated_at, NULL) AS published_at, c.applied_at
+        FROM tracks t
+        LEFT JOIN track_note_drafts d ON d.track_id = t.id
+        LEFT JOIN track_date_corrections c ON c.track_id = t.id
+        WHERE t.note IS NOT NULL AND t.note <> ''
+        ORDER BY published_at IS NULL, published_at DESC, t.id")->fetchAll();
+    $out = [];
+    foreach ($rows as $r) {
+        $published = $r['published_at'] !== null ? substr($r['published_at'], 0, 19) : null;
+        $out[$r['id']] = $published !== null ? max($published, (string) $r['applied_at']) : null;
+    }
+    return $out;
 }
 
 // sitemap 用。アーティストページは大文字小文字を区別しないので、表記違いは1つにまとめ、いちばん多い表記を返す

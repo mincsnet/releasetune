@@ -149,7 +149,14 @@ Phase 0（調査・報告のみ）→ 承認 → Phase 1〜5 を1 Phase 1 PR で
   - **15:20:30 JST** `releases.php` → `debut_artists.csv` の順に送った（デビュー表示が変わった時刻）。ハッシュは手元と一致、php8.3 の構文チェック OK
   - **15:20:39 JST** リリース日を反映（82件・81件が日付ページを移動）。`track_date_corrections` 82件（applied_at 06:20:39 UTC）
   - 本番で確認: /date/12-11 の荻野目洋子 19 → 0、/track/763205756 は 1985年5月21日、小柳ゆき「FREEDOM」1999年11月25日、TRF「masquerade / Winter Grooves」1995年2月1日。デビュー: 浜崎あゆみ 1998.04.08「poker face」・宇多田ヒカル 1998.12.09「Automatic / time will tell」・NiziU 2020.12.02「Step and a step」・矢沢永吉「アイ・ラヴ・ユー,OK」（崩れが直った）・BE:FIRST「Gifted.」・flumpool 2008.10.01「花になれ」、/date/04-08 に浜崎あゆみの記念日。回帰確認の URL セットはすべて 200／404 が想定どおり、PHP の警告なし、検索は noindex, follow のまま
-- 残り: main へのマージ（本番が main より先に進んでいる）、Muse への報告、Muse が medium 13組を返したら build → 送る。判断2（確認済みだけを表示する）は別に決める。運営側の精査のリリース日 wrong 21件（`data/audit/release_dates.csv`）は今回の範囲外
+- （済）main へのマージと push（2026-11-07、`39a6f32`。本番の heteml/ と main は37ファイルとも一致）
+- **debuts_004 の medium の再確認**（2026-11-09 受領、`data/audit/muse/outbox/debuts_004-medium-recheck.csv`・`.md`）: Muse が本文で確かめ直した16組は confirmed 14・unknown 2・別の値への訂正 0
+  - 反映: confirmed で年月日まで分かる **11組**（堀内孝雄・FictionJunction・FictionJunction YUUKA・LANA・小袋成彬・山本陽介・OZROSAURUS・t-Ace・いしだあゆみ・Junoflo・氣志團）。値は元の照合の訂正案と同じ。`debut_artists.csv` に `note` 列を足して再確認の補足を残した（t-Ace は「デビュー・アルバム基準」、いしだあゆみは異説「3月20日」）
+  - 反映しない: 年・月までの3組（陳柏宇 2006・五木ひろし 1965-06・John Riesen 2019-10。これまでの部分日付24組と同じく値を変えない）、unknown 2組（栗原ゆう・GANMI。「初リリース」と「メジャーデビュー」の定義の違いだけが残る。判断2と一緒に決める）
+  - `build_corrections.py` が再確認の CSV を読むように。作り直した結果、値が変わったのは11組だけ（リリース日の CSV・ほかのデビューは前回と同じ）。verified 582 → 593 / 718
+  - 手元で確認: 11組の表示（例: 堀内孝雄 1978.08.05「君のひとみは10000ボルト」、/date/08-05・04-05・05-29 に記念日）、反映しない5組は前のまま、回帰確認の URL セット、PHP の警告なし
+  - [ ] 本番へ `debut_artists.csv` を送る（ユーザーの承認待ち）→ main へ
+- 残り: Muse への報告。判断2（確認済みだけを表示する）は別に決める。運営側の精査のリリース日 wrong 21件（`data/audit/release_dates.csv`）は今回の範囲外
 
 ### あとで（ステップ2以降の候補）
 - ユーザー: Bing Webmaster Tools に登録（Search Console から読み込み）、Search Console の「URL 検査」でトップ・about などの登録をリクエスト

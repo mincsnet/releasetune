@@ -4,11 +4,12 @@ build_corrections.py — 照合の結果から、サイトに反映するデー�
 入力（git 管理外の data/audit/）:
   muse/inbox/releases_*.csv  Muse の照合（作品のリリース日）
   muse/inbox/debuts_*.csv    Muse の照合（デビュー日・デビュー作）
+  muse/outbox/debuts_004-medium-recheck.csv  debuts_004 の medium を Muse が本文で確かめ直した結果（2026-11-07）
   debuts.csv                 運営側の精査（スケジュール済みタスク）。Muse のシートにないアーティストだけ使う
 
 出力:
   heteml/data/date_corrections.csv  直すリリース日（heteml/bin/apply_date_corrections.php が DB に反映する）
-  heteml/data/debut_artists.csv     デビュー日の一覧を書き換える（直した値・verified・根拠の列）
+  heteml/data/debut_artists.csv     デビュー日の一覧を書き換える（直した値・verified・根拠・補足の列）
 
 使い方:
   python3 scripts/audit/build_corrections.py --dry-run   件数だけ表示する
@@ -17,7 +18,8 @@ build_corrections.py — 照合の結果から、サイトに反映するデー�
 反映の範囲（2026-11-07 Muse の推奨をユーザーが承認）:
   - wrong のうち、年月日まで分かり confidence が high・medium のものだけ。年・年月だけのもの、unknown は変えない
   - =LOVE のライブ盤6件は外す（照合の日付が映像盤の発売日。ライブ音源は音源としての初出日を採る方針）
-  - debuts_004.csv（検索結果の抜粋との照合が中心）は high だけ。medium は Muse が本文で確かめ直して返す
+  - debuts_004.csv（検索結果の抜粋との照合が中心）は high だけ。medium は Muse が本文で確かめ直した結果（RECHECK_CSV）で
+    confirmed のものを足す。unknown（「初リリース」と「メジャーデビュー」の定義の違いだけが残る2組）は変えない
 """
 import argparse
 import csv
@@ -30,7 +32,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CORRECTIONS_CSV = ROOT / "heteml/data/date_corrections.csv"
 DEBUTS_CSV = ROOT / "heteml/data/debut_artists.csv"
 CORRECTION_COLUMNS = ["track_id", "artist", "title", "db_date", "correct_date", "release_type", "confidence", "source_url", "checked_by"]
-DEBUT_COLUMNS = ["artist", "debut_date", "debut_track", "mbid", "verified", "source_url", "checked_by"]
+DEBUT_COLUMNS = ["artist", "debut_date", "debut_track", "mbid", "verified", "source_url", "checked_by", "note"]
+RECHECK_CSV = "muse/outbox/debuts_004-medium-recheck.csv"
 
 # 反映しない作品（track_id → 理由）
 EXCLUDED_RELEASES = {
@@ -72,7 +75,9 @@ def release_corrections(audit: Path) -> tuple[list[dict], dict]:
 
 def debut_updates(audit: Path) -> tuple[dict, dict]:
     """アーティスト名 → 書き換える値（verified だけのときは debut_date を含まない）"""
-    updates, stats = {}, {"muse_fixed": 0, "muse_ok": 0, "muse_held": 0, "muse_unchanged": 0, "own_fixed": 0, "own_ok": 0, "own_unchanged": 0}
+    updates, stats = {}, {"muse_fixed": 0, "muse_rechecked": 0, "muse_ok": 0, "muse_held": 0, "muse_unchanged": 0, "own_fixed": 0, "own_ok": 0, "own_unchanged": 0}
+    recheck_path = audit / RECHECK_CSV
+    recheck = {r["artist"]: r for r in read_csv(str(recheck_path))} if recheck_path.exists() else {}
     for path in sorted(glob.glob(str(audit / "muse/inbox/debuts_*.csv"))):
         sheet = Path(path).name
         for r in read_csv(path):
@@ -82,8 +87,14 @@ def debut_updates(audit: Path) -> tuple[dict, dict]:
                 stats["muse_ok"] += 1
             elif r["status"] == "wrong" and is_ymd(r["correct_debut_date"]) and r["confidence"] in ("high", "medium"):
                 if sheet in HIGH_ONLY_SHEETS and r["confidence"] != "high":
-                    stats["muse_held"] += 1
-                    updates[r["artist"]] = None  # 運営側の精査でも上書きしない
+                    rc = recheck.get(r["artist"])
+                    if rc and rc["recheck_verdict"] == "confirmed" and is_ymd(rc["final_debut_date"]) and rc["source_url"]:
+                        updates[r["artist"]] = {"verified": "true", "source_url": rc["source_url"], "checked_by": "muse",
+                                                "debut_date": rc["final_debut_date"], "debut_track": rc["final_debut_work"].strip(), "note": rc["note"]}
+                        stats["muse_rechecked"] += 1
+                    else:
+                        stats["muse_held"] += 1
+                        updates[r["artist"]] = None  # 運営側の精査でも上書きしない
                     continue
                 updates[r["artist"]] = base | {"debut_date": r["correct_debut_date"], "debut_track": r["correct_debut_work"].strip()}
                 stats["muse_fixed"] += 1
@@ -130,7 +141,7 @@ def main() -> None:
             changed += (d["debut_date"], d["debut_track"]) != before
 
     print(f"リリース日: 反映 {len(corrections)}（wrong {rstats['wrong']}、除外 {rstats['excluded']}、対象外 {rstats['skipped']}）")
-    print(f"デビュー: 値を直す {changed}（Muse {dstats['muse_fixed']}・運営側 {dstats['own_fixed']}）、"
+    print(f"デビュー: 値を直す {changed}（Muse {dstats['muse_fixed']}＋再確認 {dstats['muse_rechecked']}・運営側 {dstats['own_fixed']}）、"
           f"verified {sum(1 for d in debuts if d['verified'] == 'true')} / {len(debuts)}、"
           f"保留 {dstats['muse_held']}、変えない Muse {dstats['muse_unchanged']}・運営側 {dstats['own_unchanged']}")
     if args.dry_run:

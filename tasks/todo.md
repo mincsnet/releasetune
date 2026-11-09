@@ -165,7 +165,9 @@ Muse の第2・第3便で紹介文の公開が数百曲に増えた（日付分 
 - [x] `sitemap-tracks-N.xml` から紹介文のある楽曲を除く（二重に載せない）。楽曲の合計は今と同じ
 - [x] `<lastmod>` は紹介文のある楽曲だけ: 紹介文を公開した日時（`track_note_drafts.updated_at`。自動公開も手動の承認も `review_ops.publish` が公開と同時に書く）と、照合でリリース日を直した日時（`track_date_corrections.applied_at`）の新しいほう。下書きが published でない楽曲（同じ記事を別のバッチで書き直し中など）は付けない。Spotify・YouTube のリンクの追加は日時が残らないので反映しない
 - [x] 手元で確認（11/2 のコピー、紹介文7件）: 索引と子7ファイルが 200・`xmllint` で妥当、notes 7＋tracks 33,472＝楽曲 33,479 で全件・重複0、tracks-5 は 404、robots.txt は同じ。lastmod の2つの分岐（リリース日の修正が新しい → 11/7 の日時、published でない → lastmod なし）を手元の DB を一時的に変えて確認し、元に戻した。回帰確認の URL セットは想定どおり（`/track/6828291702` は手元のコピーにないので 404）
-- [ ] 本番に反映（送るのは `heteml/src/sitemap.php`・`heteml/src/tracks.php` の2つ。DB の変更なし）→ 反映日時を分単位で記録 → Search Console で `sitemap-notes.xml` が読まれたか確認（ユーザー）
+- [x] 本番に反映（ユーザー「本番に反映」）: **2026-11-09 16:51 JST**（rsync 完了 16:51:22）。送る前に本番の36ファイルが main `fa26a8b` と同じことをハッシュで確認、送ったのは `heteml/src/sitemap.php`・`heteml/src/tracks.php` の2つ（DB の変更なし）、送った後のハッシュも一致
+  - 本番で確認: 索引と子7ファイルが 200・`xmllint` で妥当、tracks-5 は 404。**sitemap-notes 672曲**（全件に lastmod。日付別 9/30 6・10/5 1・11/6 61・11/9 604）＋tracks 32,954 ＝ 33,626 で反映前の楽曲数と同じ・重複0。sitemap-artists 3,909・dates 368 は変わらず。紹介文の楽曲のサンプル5件（AKB48・SUPER EIGHT・Vaundy・Every Little Thing・浜崎あゆみ）は 200・出典の Wikipedia リンクあり・noindex なし。回帰確認の URL セットは想定どおり、robots.txt は同じ
+- [ ] Search Console で `sitemap-notes.xml` が読まれたか確認（ユーザー。索引から辿られるので再送信は不要だが、早めたいなら「サイトマップ」で sitemap.xml を送り直す）
 - 本番の現状（2026-11-09 16:40、公開の sitemap で数えた）: 楽曲 33,626・アーティスト 3,909・日付など 368 ＝ 37,903 URL（指示書の 11/6 時点は 37,861）
 
 ### クロール指示書 Phase 0（2026-11-09 着手。調査のみ）

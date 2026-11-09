@@ -7,13 +7,15 @@ data/notes/drafts.json（Claude が STYLE.md に従って書いたもの）を�
 drafts.json の形式:
     [
       {"wiki_title": "少女A", "note_short": "…", "note_long": "…",
-       "facts": [{"claim": "オリコン週間最高5位", "source": "（出典テキストの該当箇所）"}],
+       "facts": [{"claim": "オリコン週間最高5位", "source": "（出典テキストの該当箇所）"},
+                 {"claim": "ゴールド認定", "source": "（そのページの該当箇所）", "source_url": "https://…"}],
        "review_note": "（任意）書き手がレビューで見てほしい点"},
       {"wiki_title": "…", "skip": true, "skip_reason": "出典に発売日以外の情報がない"}
     ]
 
 抜き取り（review_required=true）:
-    - 機械チェックに引っかかったもの、書き手の申し送り（review_note）があるもの、書き直し依頼への再提出 → 全件
+    - 機械チェックに引っかかったもの、書き手の申し送り（review_note）があるもの、
+      Wikipedia 以外のページ（facts の source_url）を使ったもの、書き直し依頼への再提出 → 全件
     - それ以外 → 1割（最低3件）を無作為に
     （2026-11-06 まで「人がレビューを終えた記事が50件になるまで全件」の試作期間があった。終了）
 要確認でない記事は、事実の照合を経て auto_publish.py が公開する（ROUTINE.md）
@@ -165,7 +167,16 @@ def main():
         short = (d.get("note_short") or "").strip()
         long_ = (d.get("note_long") or "").strip()
         facts = d.get("facts") or []
-        issues = check(short, long_, facts, g[0]["source_text"] or "", [tracks[i] for i in ids if i in tracks])
+        # Wikipedia 以外のページからの引用も、数字・名前・丸写しの照合先に入れる（その記事は下で必ず要確認にする）
+        external = [f for f in facts if isinstance(f, dict) and f.get("source_url")]
+        reference = "\n".join([g[0]["source_text"] or ""] + [str(f.get("source") or "") for f in external])
+        issues = check(short, long_, facts, reference, [tracks[i] for i in ids if i in tracks])
+        if external:
+            urls = list(dict.fromkeys(str(f["source_url"]) for f in external))
+            issues.append({"type": "external_source", "detail": "Wikipedia 以外の出典（引用がページにあるか確認）: " + " / ".join(urls)})
+            for f in external:
+                if not re.match(r"https?://", str(f["source_url"])):
+                    issues.append({"type": "external_source", "detail": f"出典の URL が不正「{f['source_url']}」"})
         if (note := (d.get("review_note") or "").strip()):
             issues.append({"type": "writer_flag", "detail": f"書き手の申し送り: {note}"})
         results.append((title, ids, {"status": "drafted", "note_short": short, "note_long": long_ or None,

@@ -62,12 +62,15 @@ DBの曲名を直した後（`scripts/titles/fix_ja_titles.py` など）は、`p
 1. **作業ファイルを作る**: 必要なら収集（手順2）のあと、
    `python3 scripts/notes/export_pending.py --limit 20 --blank --out data/notes/muse/muse-YYYY-MM-DD.json`
    - 記事ごとに空の回答欄（`note_short`・`note_long`・`facts`・`skip`・`skip_reason`）が付く
+   - 近いうちの日付ページや X の紹介に間に合わせたいときは、先に `collect.py --mmdd 11-10` のように日付ごとに収集し、日付ごとの作業ファイルに `--mmdd 11-10 --limit 100 --out data/notes/muse/muse-1110.json` で書き出す（バッチ ID は `muse-1110`）。日付を指定せず記念日が近い順に並べるなら `--by-date`
+   - アーティストの一覧（1行に1組）から作るときは、各アーティストを `collect.py --artist` で収集してから `--artists 一覧.txt --limit 0 --split 30 --exclude data/notes/muse/muse-*.json --out data/notes/muse/muse-<名前>.json`（30記事ずつ `muse-<名前>-001.json` … に分かれる。渡し済みのファイルの記事は除く）
 2. **渡す**: ユーザーが Muse に `MUSE.md`・`STYLE.md`・作業ファイルの3つを渡す
    - Muse に渡している間は、同じ記事を定期実行で書かない（記事は `sourced` のままなので、先に取り込んだ方だけが保存され、後の方は「執筆待ちにありません」で弾かれる）
-3. **受け取る**: ユーザーが Muse から返ってきた `muse-YYYY-MM-DD.done.json` を `data/notes/muse/` に置き、「Muse の分を反映して」と依頼する。Muse の申し送り（メッセージ）もあれば一緒に受け取る
-4. **チェック**: `python3 scripts/notes/import_drafts.py data/notes/muse/muse-YYYY-MM-DD.done.json --batch muse-YYYY-MM-DD --dry-run`
+3. **受け取る**: ユーザーが Muse から返ってきた `muse-<名前>.done.json`（例: `muse-1110.done.json`） を `data/notes/muse/` に置き、「Muse の分を反映して」と依頼する。Muse の申し送り（メッセージ）もあれば一緒に受け取る
+4. **チェック**: `python3 scripts/notes/import_drafts.py data/notes/muse/muse-<名前>.done.json --batch muse-<名前> --dry-run`
    - JSON が壊れていたら（Muse の書き損じ）、文面は変えずに構文だけ直す
    - `wiki_title` が変わっていて取り込めない記事は、元の作業ファイルと照らして直す
+   - Wikipedia 以外のページ（facts の `source_url`）を使った記事は、自動で要確認になる（指摘に URL が並ぶ）。レビューでは、引用がそのページに本当にあるかを開いて確かめる
    - チェックの指摘は直さずにそのまま保存してよい（Muse の文面を Claude が書き換えない。レビューで人が判断する）。ただし文末の「。」抜けのような明らかな形式の誤りは直してよく、直したら報告する
 5. **保存**: 同じコマンドを `--dry-run` なしで実行する。バッチ ID を `muse-` で始めると、レビューページで Claude の下書きと区別できる
    - Muse の申し送りのうち、特定の記事についてのもの（「◯◯の賞の扱いを確認して」など）は、その記事の `review_note` に書いてから保存する（人のレビューに回る）

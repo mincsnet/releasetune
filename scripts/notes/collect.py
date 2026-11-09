@@ -64,20 +64,34 @@ def save_artists(rows: dict[str, dict]) -> None:
 
 
 # ── アーティスト記事の特定 ────────────────────────────────────────
+def title_chunks(titles: list[str], max_bytes: int = 1500) -> list[list[str]]:
+    """URL が長すぎない（414 にならない）よう、1回の問い合わせに入れる記事名を分ける。
+    共演名義（「A, B, C & D」）に SUFFIXES を付けた候補は1回に収まらないことがある"""
+    chunks, cur, size = [], [], 0
+    for t in titles:
+        n = len(t.encode()) + 1
+        if cur and size + n > max_bytes:
+            chunks.append(cur)
+            cur, size = [], 0
+        cur.append(t)
+        size += n
+    return chunks + [cur] if cur else chunks
+
+
 def page_info(titles: list[str]) -> list[dict]:
     """titles を順に解決し [{asked, title, missing, disambiguation, categories}] を返す"""
-    data = wiki_get({
-        "action": "query", "titles": "|".join(titles), "redirects": "1",
-        "prop": "categories|pageprops", "clshow": "!hidden", "cllimit": "max",
-        "ppprop": "disambiguation",
-    })
-    q = data.get("query", {})
-    alias = {}
-    for n in q.get("normalized", []):
-        alias[n["from"]] = n["to"]
-    for r in q.get("redirects", []):
-        alias[r["from"]] = r["to"]
-    pages = {p["title"]: p for p in q.get("pages", [])}
+    alias, pages = {}, {}
+    for chunk in title_chunks(titles):
+        q = wiki_get({
+            "action": "query", "titles": "|".join(chunk), "redirects": "1",
+            "prop": "categories|pageprops", "clshow": "!hidden", "cllimit": "max",
+            "ppprop": "disambiguation",
+        }).get("query", {})
+        for n in q.get("normalized", []):
+            alias[n["from"]] = n["to"]
+        for r in q.get("redirects", []):
+            alias[r["from"]] = r["to"]
+        pages |= {p["title"]: p for p in q.get("pages", [])}
     out = []
     for t in titles:
         final = t

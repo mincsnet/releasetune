@@ -185,14 +185,20 @@ Muse の第2・第3便で紹介文の公開が数百曲に増えた（日付分 
 ### 判断2: 確認済みのデビュー情報だけを表示（2026-11-09 Muse の回答）
 - [x] `debut_db()` が `verified=true` の行だけを返す（593組）。デビュー情報はすべてここを通るので、アーティストページ・日付ページの記念日・楽曲ページの印・シェア文・X の予約投稿・ピックの点数（デビュー作 +40・デビュー一覧 +10）がそろって切り替わる
 - [x] 手元で確認: 未確認の栗原ゆう・GANMI・五木ひろし・=LOVE・Aimer はデビュー表示なし、/date/09-06（=LOVE）・09-07（Aimer）の記念日から消えた。確認済みの堀内孝雄・浜崎あゆみなどはそのまま。ピックは 3,658曲のうち 114曲が入れ替わる（点数が変わるため。件数は同じ）
-- [ ] 本番に反映 → 反映日時を分単位で記録
+- [x] 本番に反映（ユーザー「本番に反映」）: **2026-11-09 17:30 JST**（rsync 完了 17:30:01）。送る前に本番の36ファイルが main `3ed0106` と同じことをハッシュで確認、送ったのは `releases.php` だけ。本番で未確認の組（栗原ゆう・GANMI・五木ひろし・=LOVE・Aimer）の表示なし、/date/09-06 から =LOVE が消えた、確認済みの組と記念日はそのまま、回帰確認の URL セットは想定どおり
 
 ### クロール指示書 Phase 1: サイトマップの選別（2026-11-09 Muse 承認）
 - [x] `heteml/src/sitemap.php` を区分ごとの子ファイルに: dates（368）・artists（2曲以上か優先曲あり）・notes（紹介文、lastmod あり）・picks（ピック、紹介文と重なる分を除く）・recent（リリース日が今日を含め90日以内、上の2つと重なる分を除く）。`sitemap-tracks-N.xml` は 404。索引の URL は同じ
 - [x] ピックは366日分の計算に数秒かかるので `heteml/cache/sitemap/picks-{日付}.json` に1日1回だけ作る（2回目以降 0.04秒）。作るのは最初に sitemap-picks か sitemap-artists が開かれたとき（手元 4.8秒）
 - [x] `tracks.php`: `track_ids`・`track_count`・`artist_names` をやめ、`recent_track_ids`・`artist_name_counts`（ページと同じ artist_lc でまとめる）・`track_artists_lc` に
 - [x] 手元で確認（11/2 のコピー）: 索引5・dates 368・artists 1,548・notes 7・picks 3,653・recent 527、すべて 200・`xmllint` で妥当、楽曲の重複 0、tracks-1・4 は 404。artists は別の計算（2曲以上 1,186＋1曲で優先曲 362）と一致。サンプル: AKB48・/date/11-06 は載る、ミラーチューン・ATEEZ・朝顔は載らない（milet は手元のコピーにない）。回帰確認の URL セットは想定どおり
-- [ ] 本番に反映（判断2 の後）→ 反映日時を分単位で記録 → 区分ごとの実件数とサンプル6件の載否を Muse に報告
+- [x] 本番に反映: **2026-11-09 17:30 JST**（rsync 完了 17:30:35、判断2 の34秒後）。`tracks.php`・`sitemap.php` を送り、ハッシュ一致・構文チェック OK
+  - 本番: 索引5・dates 368・artists 1,630・notes 672（全件 lastmod）・picks 3,185・recent 641 ＝ **6,496 URL**（前は 37,903）、重複0、すべて妥当な XML、tracks-1・4 は 404。案の 6,499 との差（picks −2・artists −1）は判断2でピックが入れ替わったため
+  - ピックの初回の計算は本番で 9.9秒（キャッシュを作る）、2回目は 0.26秒
+  - サンプル: milet → recent・AKB48 → artists・/date/11-06 → dates、ミラーチューン・ATEEZ・朝顔は載らない（200・noindex なし・canonical は自身）。lastmod のサンプル5件は本番 DB の公開日時と一致。robots.txt 同じ、`/search` は noindex, follow のまま、回帰確認の URL セットは想定どおり
+- [x] 報告書 `tasks/seo-report-2026-11-09-phase1.md`（確認2点の回答・判断2・Phase 1・計測メモ）
+- [ ] ユーザー: Search Console で sitemap.xml を送り直す。古い sitemap-tracks-1〜4 がエラーで残ったら削除
+- [ ] 観察4週間（〜2026-12-07）。その間 SEO の追加変更はしない（新着・Spotify 補完・紹介文の公開は続ける）
 
 ### あとで（ステップ2以降の候補）
 - ユーザー: Bing Webmaster Tools に登録（Search Console から読み込み）、Search Console の「URL 検査」でトップ・about などの登録をリクエスト

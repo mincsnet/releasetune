@@ -13,6 +13,7 @@ track_id,artist,title,db_date,correct_date,release_type,confidence,source_url,ch
 1171745864,ときめき♡宣伝部,季節外れのときめき♡サマー どんどん盤 - Single,2016-11-09,2015-12-02,reissue,high,https://ja.wikipedia.org/wiki/%E5%AD%A3%E7%AF%80%E5%A4%96%E3%82%8C%E3%81%AE%E3%81%A8%E3%81%8D%E3%82%81%E3%81%8D%E2%99%A1%E3%82%B5%E3%83%9E%E3%83%BC,muse
 1350497019,デヴィッド・ボウイ,ChangesTwoBowie (2018 Remaster),1981-11-13,1981-11-16,reissue,medium,https://www.discogs.com/master/43591-David-Bowie-ChangesTwoBowie?redirected=true,muse
 1370749549,中島みゆき,36.5℃(リマスター),1986-12-11,1986-11-12,reissue,high,https://www.miyuki.jp/s/y10/discography/YCCW-00017?ima=0000,muse
+1444611634,坂本冬美,秋まつり、お月さま - EP,2006-11-08,2006-11-01,original,medium,https://ja.wikipedia.org/wiki/坂本冬美,audit-task
 1445737882,サスケ,sasuke (Deluxe Edition),2014-12-10,2014-08-27,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%B5%E3%82%B9%E3%82%B1_(%E5%9F%BC%E7%8E%8D%E7%9C%8C%E5%87%BA%E8%BA%AB%E3%81%AE%E3%83%87%E3%83%A5%E3%82%AA),muse
 1445831919,MINMI,BAD (Deluxe Edition),2014-12-10,2014-09-24,reissue,high,https://tower.jp/item/3623205,muse
 1445885064,鬼束ちひろ,インソムニア (Deluxe Edition),2013-12-18,2001-03-07,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%A4%E3%83%B3%E3%82%BD%E3%83%A0%E3%83%8B%E3%82%A2_(%E9%AC%BC%E6%9D%9F%E3%81%A1%E3%81%B2%E3%82%8D%E3%81%AE%E3%82%A2%E3%83%AB%E3%83%90%E3%83%A0),muse
@@ -33,18 +34,30 @@ track_id,artist,title,db_date,correct_date,release_type,confidence,source_url,ch
 1537214897,YELLOW MAGIC ORCHESTRA,ソリッド・ステイト・サヴァイヴァー(2018 Bob Ludwig Remastering),2018-11-28,1979-09-25,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%BD%E3%83%AA%E3%83%83%E3%83%89%E3%83%BB%E3%82%B9%E3%83%86%E3%82%A4%E3%83%88%E3%83%BB%E3%82%B5%E3%83%B4%E3%82%A1%E3%82%A4%E3%83%B4%E3%82%A1%E3%83%BC,muse
 1537215043,YELLOW MAGIC ORCHESTRA,イエロー・マジック・オーケストラ〈US版〉(2018 Bob Ludwig Remastering),2018-11-28,1979-05-30,reissue,medium,https://en.wikipedia.org/wiki/Yellow_Magic_Orchestra_(album),muse
 1584649558,竹内まりや,REQUEST -30th Anniversary Edition- (2017 Remaster),2017-11-22,1987-08-12,reissue,high,https://wmg.jp/mariya/discography/18763,muse
+1590266229,Novelbright,seeker / ワンルーム - Single,2021-11-23,2021-11-24,original,medium,https://www.thefirsttimes.jp/?p=38472,audit-task
+1590268187,Novelbright,seeker - Single,2021-11-24,2021-10-25,original,medium,https://www.thefirsttimes.jp/?p=38472,audit-task
+1592697911,スキマスイッチ,Hot Milk,2021-11-17,2021-11-24,original,medium,https://ja.wikipedia.org/wiki/Hot_Milk,audit-task
+1592933770,Novelbright,ワンルーム - Single,2021-11-14,2021-11-15,original,medium,https://realsound.jp/2021/10/post-879148.html,audit-task
+1593710942,浜崎あゆみ,Cyber TRANCE presents ayu trance 2 (COMPLETE EDITION),2021-11-17,2002-09-26,reissue,medium,https://musicbrainz.org/release-group/b6a6280f-f3b5-351c-ad23-baf080c144d0,audit-task
+1595213550,テイラー・スウィフト,I Bet You Think About Me (Taylor's Version) (From The Vault) [feat. Chris Stapleton] - Single,2021-11-11,2021-11-12,rerecording,medium,https://musicbrainz.org/release-group/1771d309-5449-4509-b11a-0593972bdfe5,audit-task
+1595925412,aespa,Savage - The 1st Mini Album (Extended Version) - EP,2021-11-19,2021-10-05,reissue,medium,https://musicbrainz.org/release-group/d35ed94d-8134-40b3-989a-6d1c5af9657b,audit-task
 1655916669,宇多田ヒカル,初恋 (2022 Remastering) - Single,2022-12-09,2018-05-30,reissue,high,https://www.sonymusic.co.jp/artist/utadahikaru/info/493808,muse
+1714384567,藤井 風,花 - Single,2023-11-03,2023-10-13,reissue,medium,https://musicbrainz.org/release-group/59f377bb-00e1-41eb-8d50-91ebcb301385,post-task
 1730696667,TRF,LIVE in YOKOHAMA ARENA,2006-11-29,1997-04-30,reissue,medium,https://ja.wikipedia.org/wiki/TRF_96_ARENA_TOUR_SILENT_NIGHT,muse
+1772758653,SHOW-YA,Showdown,2021-11-12,2021-08-30,original,medium,https://ja.wikipedia.org/wiki/SHOW-YA,audit-task
 1781602555,小田 和正,自己ベスト-2 (2024Ver.),2024-11-27,2007-11-28,reissue,high,https://www.oricon.co.jp/prof/218568/products/737190/1/,muse
 1781602788,小田 和正,自己ベスト (2024Ver.),2024-11-27,2002-04-24,reissue,high,http://www.oricon.co.jp/prof/218568/rank/album/,muse
 1783096209,坂本龍一,/04 /05 (2024 Remaster),2024-12-18,2004-11-24,reissue,high,https://wmg.jp/sakamoto-ryuichi/discography/30250,muse
 1849107580,The xx,xx (Deluxe),2009-11-18,2009-08-14,reissue,medium,https://en.wikipedia.org/wiki/Xx_(The_xx_album),muse
+1864135508,平松愛理,いいんじゃない? - Single,2011-11-16,2011-11-09,original,medium,https://ja.wikipedia.org/wiki/平松愛理,audit-task
+203853522,misono,ラブリー・キャッツアイ - EP,2006-11-08,2006-11-01,original,high,https://ja.wikipedia.org/wiki/ラブリー♡キャッツアイ,audit-task
 208074530,アン・ルイス,FETISH ~the Crime of Pleasure and Innocence~,2006-12-20,1998-02-21,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%B3%E3%83%BB%E3%83%AB%E3%82%A4%E3%82%B9,muse
 208076040,アン・ルイス,La Adelita,2006-12-20,1996-09-21,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%B3%E3%83%BB%E3%83%AB%E3%82%A4%E3%82%B9,muse
 208078594,アン・ルイス,ROCKADELIC,2006-12-20,1993-09-22,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%B3%E3%83%BB%E3%83%AB%E3%82%A4%E3%82%B9,muse
 208300592,アン・ルイス,PIERCER,2006-12-20,1994-11-23,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%B3%E3%83%BB%E3%83%AB%E3%82%A4%E3%82%B9,muse
 208300629,アン・ルイス,K-ROCK,2006-12-20,1992-09-23,reissue,high,https://ja.wikipedia.org/wiki/K-ROCK_(%E3%82%A2%E3%83%AB%E3%83%90%E3%83%A0),muse
 209265537,MINMI,アイの実 - EP,2006-12-27,2004-03-31,reissue,high,https://minmi.jp/minmi_single/ainomi/,muse
+265185782,THE ALFEE,THE ALFEE CLASSICS II,2001-11-16,1996-12-16,reissue,high,https://ja.wikipedia.org/wiki/THE_ALFEE_CLASSICS_II,audit-task
 285608806,小柳ゆき,FREEDOM,1999-09-15,1999-11-25,original,high,https://ja.wikipedia.org/wiki/FREEDOM_(%E5%B0%8F%E6%9F%B3%E3%82%86%E3%81%8D%E3%81%AE%E3%82%A2%E3%83%AB%E3%83%90%E3%83%A0),muse
 309001883,TRF,TOUR 1999 exicoast tour at OSAKA,2006-11-29,1999-12-15,reissue,medium,https://ja.wikipedia.org/wiki/TRF_exicoast_tour_'99,muse
 309854075,TRF,TOUR '98 Live in Unite!,2006-11-29,1998-09-17,reissue,medium,https://ja.wikipedia.org/wiki/TRF_TOUR_'98_Live_in_Unite!,muse
@@ -63,6 +76,7 @@ track_id,artist,title,db_date,correct_date,release_type,confidence,source_url,ch
 342933092,シーナ&ロケッツ,CAPTAIN GUITAR AND BABY ROCK,2009-12-16,1986-12-16,live,high,https://ja.wikipedia.org/wiki/%E3%82%B7%E3%83%BC%E3%83%8A&%E3%82%B6%E3%83%BB%E3%83%AD%E3%82%B1%E3%83%83%E3%83%84,muse
 579179095,森高千里,コンサートの夜 - Single,2012-11-16,1992-02-25,reissue,high,https://ja.wikipedia.org/wiki/%E3%82%B3%E3%83%B3%E3%82%B5%E3%83%BC%E3%83%88%E3%81%AE%E5%A4%9C,muse
 579179177,森高千里,ファイト!! - Single,2012-11-16,1991-10-25,reissue,high,https://ja.wikipedia.org/wiki/%E3%83%95%E3%82%A1%E3%82%A4%E3%83%88!!,muse
+720581650,DJ OZMA,I Love Party People,2006-11-20,2006-11-15,original,medium,https://en.wikipedia.org/wiki/DJ_Ozma,audit-task
 737053237,ピットブル,Global Warming: Meltdown (Deluxe Version),2012-11-16,2013-11-25,other,high,https://en.wikipedia.org/wiki/Pitbull_discography,muse
 763205756,荻野目洋子,恋してカリビアン - EP,2013-12-11,1985-05-21,reissue,high,https://ja.wikipedia.org/wiki/%E8%8D%BB%E9%87%8E%E7%9B%AE%E6%B4%8B%E5%AD%90,muse
 763206696,荻野目洋子,未来航海 - EP,2013-12-11,1984-04-03,reissue,high,https://ja.wikipedia.org/wiki/%E8%8D%BB%E9%87%8E%E7%9B%AE%E6%B4%8B%E5%AD%90,muse

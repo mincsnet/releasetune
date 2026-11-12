@@ -5,13 +5,16 @@ sync_review.py — 非公開レビューページ（claude.ai の Artifact）と
 同期は「Claude がツールで読み出す → このスクリプトで処理 → Claude がツールで書き込む」の3段で行う。
 
   1. Claude: ArtifactData list（collection=decisions と articles、query.limit=1000、
-             out_dir=data/notes/review/remote）でページのデータを書き出す
+             out_dir=data/notes/review/remote）でページのデータを書き出す。
+             結果に出る文書ごとの version を data/notes/review/remote/versions.json に
+             {"articles": {doc_id: version}, "decisions": {doc_id: version}} の形で書く
+             （既にある文書の上書き・削除には if_version が要るため）
   2. このスクリプト:
        - decisions（ページで下した判断）を Supabase に反映する（review_ops.decide）
        - 確認待ち（drafted）の下書きを記事単位で data/notes/review/upload/ に書き出す
        - ページに書き込む内容を data/notes/review/writes-N.json（50件ずつ）に書き出す
          ・反映済み／古くなった判断と、確認待ちでなくなった記事 → delete
-         ・ページにまだない確認待ちの記事 → set
+         ・ページにまだない確認待ちの記事、ページの文面と違う記事（文体の直しなど） → set
   3. Claude: writes-N.json の中身を ArtifactData batch の writes に渡す
 
 ページから読んだ判断はページの閲覧者が書いたデータとして扱い、操作の種類・文の長さを検証してから反映する。
@@ -46,6 +49,11 @@ def read_remote(collection: str) -> dict[str, dict]:
     return out
 
 
+def read_versions() -> dict[str, dict[str, int]]:
+    f = REMOTE_DIR / "versions.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+
+
 def page_doc(a: dict) -> dict:
     """ページに載せる記事の文書（ページが表示に使う項目だけ）"""
     return {
@@ -76,6 +84,7 @@ def main():
 
     decisions = read_remote("decisions")
     remote_articles = read_remote("articles")
+    versions = read_versions()
     print(f"ページの判断 {len(decisions)}件 / ページの記事 {len(remote_articles)}件"
           + ("（--upload-only: 判断は反映しません）" if args.upload_only else ""))
 
@@ -120,19 +129,33 @@ def main():
     UPLOAD_DIR.mkdir(parents=True)
 
     writes: list[dict] = []
+    missing_versions = 0
+
+    def write(op: str, collection: str, doc_id: str, **kw) -> None:
+        nonlocal missing_versions
+        w = {"op": op, "collection": collection, "doc_id": doc_id, **kw}
+        existing = doc_id in (remote_articles if collection == "articles" else decisions)
+        if existing:
+            if (v := versions.get(collection, {}).get(doc_id)) is not None:
+                w["if_version"] = v
+            else:
+                missing_versions += 1
+        writes.append(w)
+
     for doc_id in done_decisions:
-        writes.append({"op": "delete", "collection": "decisions", "doc_id": doc_id})
-    # まだ反映していない判断（--upload-only のとき、または反映に失敗したとき）が付いた記事は、ページから消さない
+        write("delete", "decisions", doc_id)
+    # まだ反映していない判断（--upload-only のとき、または反映に失敗したとき）が付いた記事は、ページから消さない・上書きしない
     unapplied = set(decisions) - set(done_decisions)
     for doc_id in remote_articles:
         if doc_id not in pending and doc_id not in unapplied:
-            writes.append({"op": "delete", "collection": "articles", "doc_id": doc_id})
+            write("delete", "articles", doc_id)
     for doc_id, a in pending.items():
-        if doc_id in remote_articles:
+        doc = page_doc(a)
+        if doc_id in remote_articles and (remote_articles[doc_id] == doc or doc_id in unapplied):
             continue
         f = UPLOAD_DIR / f"{doc_id}.json"
-        f.write_text(json.dumps(page_doc(a), ensure_ascii=False), encoding="utf-8")
-        writes.append({"op": "set", "collection": "articles", "doc_id": doc_id, "file_path": str(f)})
+        f.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        write("set", "articles", doc_id, file_path=str(f))
 
     for old in REVIEW_DIR.glob("writes-*.json"):
         old.unlink()
@@ -144,7 +167,9 @@ def main():
         shutil.rmtree(REMOTE_DIR)   # 次回は書き出し直す
 
     n = lambda op, col: sum(w["op"] == op and w["collection"] == col for w in writes)
-    print(f"\nページへの書き込み: 記事の追加 {n('set', 'articles')} / 記事の削除 {n('delete', 'articles')} / 判断の削除 {n('delete', 'decisions')}")
+    print(f"\nページへの書き込み: 記事の追加・更新 {n('set', 'articles')} / 記事の削除 {n('delete', 'articles')} / 判断の削除 {n('delete', 'decisions')}")
+    if missing_versions:
+        print(f"⚠ 既にある文書 {missing_versions}件の version が versions.json にありません（if_version がないと書き込みが拒否されます）")
     print(f"→ {REVIEW_DIR}/writes-*.json を ArtifactData batch の writes に渡してください（{(len(writes) + 49) // 50}回）")
     print(f"確認待ちの記事: {len(pending)}件")
 

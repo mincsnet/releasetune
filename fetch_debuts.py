@@ -10,6 +10,9 @@ MusicBrainz API から取得し、debut_artists.csv に保存する。
   python3 fetch_debuts.py --artist "欅坂46" # 1アーティスト指定
 
 出力: debut_artists.csv（なければ新規作成、あれば追記・上書き）
+
+注意: サイトが読むのは heteml/data/debut_artists.csv で、照合で直した値・verified・根拠の列がある
+（scripts/audit/build_corrections.py が作る）。この出力をそこへコピーすると、直した値が元に戻る。
 """
 
 import json, csv, time, unicodedata

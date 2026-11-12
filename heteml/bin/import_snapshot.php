@@ -3,6 +3,9 @@
 // 両テーブルを空にしてから入れ直すので、何度実行しても同じ結果になる。途中で失敗したら何も変えない（1つのトランザクション）。
 //
 // 使い方: php heteml/bin/import_snapshot.php data/backup/supabase_YYYYMMDD-HHMMSS.jsonl
+//
+// 注意: 照合で直したリリース日（track_date_corrections）は、古いスナップショットを入れると元の値に戻る。
+// 入れた後は php heteml/bin/apply_date_corrections.php をもう一度実行すること（照合時の値のままの作品だけを直し直す）
 
 require_once __DIR__ . '/../src/bootstrap.php';
 

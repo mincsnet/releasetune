@@ -100,28 +100,60 @@ function search_artist_breakdown(string $query): ?array
     return ['name' => $rows[0]['artist'], 'main' => array_sum(array_column($rows, 'c')), 'participation' => count(tracks_with_participation(trim($query)))];
 }
 
-// sitemap 用。楽曲 ID を一覧と同じ並び（新しい順）で $offset 件目から $limit 件
-function track_ids(int $offset, int $limit): array
+// sitemap 用。リリース日が今日（JST）を含めて $days 日以内の楽曲の id（新しい順）
+function recent_track_ids(int $days): array
 {
-    $stmt = db()->prepare('SELECT id FROM tracks ORDER BY ' . LIST_ORDER . ' LIMIT ? OFFSET ?');
-    $stmt->execute([$limit, $offset]);
+    $today = new DateTimeImmutable('today');
+    $stmt = db()->prepare('SELECT id FROM tracks WHERE release_date > ? AND release_date <= ? ORDER BY ' . LIST_ORDER);
+    $stmt->execute([$today->modify("-{$days} days")->format('Y-m-d'), $today->format('Y-m-d')]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
-function track_count(): int
+// sitemap 用。紹介文のある楽曲の id => ページの内容が最後に変わった日時（UTC の 'Y-m-d H:i:s'。分からなければ null）。公開の新しい順。
+// 日時は、紹介文を公開した日時（track_note_drafts.updated_at。scripts/notes/review_ops.py の publish が公開と同時に書く）と、
+// 照合でリリース日を直した日時（track_date_corrections.applied_at）の新しいほう。
+// 下書きが公開済み（published）でない楽曲（同じ記事が別のバッチで書き直し中など）は、紹介文がいつ変わったか分からないので null
+function note_track_lastmods(): array
 {
-    return (int) db()->query('SELECT COUNT(*) FROM tracks')->fetchColumn();
+    $rows = db()->query("SELECT t.id, IF(d.status = 'published', d.updated_at, NULL) AS published_at, c.applied_at
+        FROM tracks t
+        LEFT JOIN track_note_drafts d ON d.track_id = t.id
+        LEFT JOIN track_date_corrections c ON c.track_id = t.id
+        WHERE t.note IS NOT NULL AND t.note <> ''
+        ORDER BY published_at IS NULL, published_at DESC, t.id")->fetchAll();
+    $out = [];
+    foreach ($rows as $r) {
+        $published = $r['published_at'] !== null ? substr($r['published_at'], 0, 19) : null;
+        $out[$r['id']] = $published !== null ? max($published, (string) $r['applied_at']) : null;
+    }
+    return $out;
 }
 
-// sitemap 用。アーティストページは大文字小文字を区別しないので、表記違いは1つにまとめ、いちばん多い表記を返す
-function artist_names(): array
+// sitemap 用。アーティスト（キーは小文字の名前。アーティストページは大文字小文字を区別しない）=> ['name' => いちばん多い表記, 'count' => 作品数]。作品数の多い順
+function artist_name_counts(): array
 {
-    $rows = db()->query('SELECT artist FROM tracks GROUP BY artist ORDER BY COUNT(*) DESC, artist')->fetchAll(PDO::FETCH_COLUMN);
-    $names = [];
-    foreach ($rows as $name) {
-        $names[mb_strtolower($name)] ??= $name;
+    // まとめるキーはページと同じ artist_lc（MySQL の LOWER）
+    $rows = db()->query('SELECT artist, artist_lc, COUNT(*) AS n FROM tracks GROUP BY artist, artist_lc ORDER BY n DESC, artist')->fetchAll();
+    $out = [];
+    foreach ($rows as $r) {
+        $lc = $r['artist_lc'];
+        $out[$lc] ??= ['name' => $r['artist'], 'count' => 0];
+        $out[$lc]['count'] += (int) $r['n'];
     }
-    return array_values($names);
+    uasort($out, fn($x, $y) => $y['count'] <=> $x['count']);
+    return $out;
+}
+
+// sitemap 用。楽曲 id の一覧から、そのアーティスト（小文字の名前）の一覧
+function track_artists_lc(array $ids): array
+{
+    $out = [];
+    foreach (array_chunk($ids, 1000) as $chunk) {
+        $stmt = db()->prepare('SELECT DISTINCT artist_lc FROM tracks WHERE id IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')');
+        $stmt->execute($chunk);
+        array_push($out, ...$stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+    return array_values(array_unique($out));
 }
 
 // 日付ページのピック用。Wikipedia に作品の記事が見つかっている（紹介文の下調べで記事名が分かった）作品の id

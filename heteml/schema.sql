@@ -82,3 +82,18 @@ CREATE TABLE IF NOT EXISTS buffer_posts (
   created_at     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- UTC（src/db.php）
   PRIMARY KEY (post_date, slot)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- 照合（Muse・運営側の精査）で直したリリース日の記録（bin/apply_date_corrections.php）。
+-- 元の値を残しておき、--revert で戻せるようにする。1作品1行（直し直したときは上書き）。
+-- 2026-11-07 に追加。既存の DB にはこの CREATE TABLE をそのまま実行する
+CREATE TABLE IF NOT EXISTS track_date_corrections (
+  track_id         VARCHAR(64) NOT NULL,
+  old_release_date DATE        NOT NULL, -- 直す前の tracks.release_date（配信開始日など）
+  new_release_date DATE        NOT NULL, -- 照合で確かめた日付
+  release_type     VARCHAR(32) NOT NULL, -- original・reissue・live など（照合シートの release_type）
+  confidence       VARCHAR(16) NOT NULL, -- high・medium
+  source_url       TEXT        NOT NULL, -- 根拠のページ
+  checked_by       VARCHAR(64) NOT NULL, -- 照合した人（muse など）
+  applied_at       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- UTC（src/db.php）
+  PRIMARY KEY (track_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
